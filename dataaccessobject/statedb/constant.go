@@ -28,6 +28,7 @@ const (
 	BridgeStatusObjectType
 	BurningConfirmObjectType
 	TokenTransactionObjectType
+	BlockMerkleObjectType
 
 	// portal
 	//final exchange rates

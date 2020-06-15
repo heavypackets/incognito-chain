@@ -41,6 +41,7 @@ const (
 	ErrInvalidPortalRewardInfoStateType       = "invalid portal reward info state type"
 	ErrInvalidPortalLockedCollateralStateType = "invalid portal locked collateral state type"
 	ErrInvalidRewardFeatureStateType          = "invalid feature reward state type"
+	ErrInvalidBlockMerkleHashType             = "invalid block merkle hash type"
 )
 const (
 	InvalidByteArrayTypeError = iota

@@ -445,3 +445,21 @@ func DeleteShardSlashRootHash(db incdb.KeyValueWriter, shardID byte, height uint
 	}
 	return nil
 }
+
+func StoreShardBlockRootHash(db incdb.KeyValueWriter, shardID byte, height uint64, rootHash common.Hash) error {
+	key := GetShardBlockRootHashKey(shardID, height)
+	err := db.Put(key, rootHash[:])
+	if err != nil {
+		return NewRawdbError(StoreShardBlockRootHashError, err)
+	}
+	return nil
+}
+
+func GetShardBlockRootHash(db incdb.KeyValueReader, shardID byte, height uint64) (common.Hash, error) {
+	key := GetShardBlockRootHashKey(shardID, height)
+	res, err := db.Get(key)
+	if err != nil {
+		return common.Hash{}, NewRawdbError(GetShardBlockRootHashError, err)
+	}
+	return common.BytesToHash(res), nil
+}

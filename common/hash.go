@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"golang.org/x/crypto/sha3"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -170,6 +171,10 @@ func Keccak256(data ...[]byte) Hash {
 	r := Hash{}
 	copy(r[:], h)
 	return r
+}
+
+func Keccak256Bytes(data ...[]byte) []byte {
+	return crypto.Keccak256(data...)
 }
 
 func HashArrayInterface(target interface{}) (Hash, error) {

@@ -3,9 +3,10 @@ package statedb
 import (
 	"bytes"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/common"
 	"sort"
 	"strconv"
+
+	"github.com/incognitochain/incognito-chain/common"
 )
 
 var (
@@ -39,6 +40,7 @@ var (
 	bridgeDecentralizedTokenInfoPrefix = []byte("bri-de-token-info-")
 	bridgeStatusPrefix                 = []byte("bri-status-")
 	burnPrefix                         = []byte("burn-")
+	blockMerklePrefix                  = []byte("blkmerkle-")
 
 	// portal
 	portalFinaExchangeRatesStatePrefix            = []byte("portalfinalexchangeratesstate-")

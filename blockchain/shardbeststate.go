@@ -4,13 +4,14 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
-	"github.com/incognitochain/incognito-chain/incdb"
 	"reflect"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
+	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
+	"github.com/incognitochain/incognito-chain/incdb"
 
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/incognitokey"
@@ -63,6 +64,8 @@ type ShardBestState struct {
 	RewardStateDBRootHash      common.Hash
 	slashStateDB               *statedb.StateDB
 	SlashStateDBRootHash       common.Hash
+	blockStateDB               *statedb.StateDB
+	BlockStateDBRootHash       common.Hash
 	lock                       sync.RWMutex
 }
 
@@ -157,6 +160,10 @@ func (shardBestState *ShardBestState) InitStateRootHash(db incdb.Database, bc *B
 	if err != nil {
 		return err
 	}
+	shardBestState.blockStateDB, err = statedb.NewWithPrefixTrie(shardBestState.BlockStateDBRootHash, dbAccessWarper)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -196,6 +203,18 @@ func (shardBestState *ShardBestState) InitStateRootHashFromDatabase(db incdb.Dat
 	}
 	if rootHash, err := bc.GetShardSlashRootHash(db, shardBestState.ShardID, shardBestState.ShardHeight); err == nil {
 		shardBestState.slashStateDB, err = statedb.NewWithPrefixTrie(rootHash, dbAccessWarper)
+		if err != nil {
+			return err
+		}
+	} else {
+		return err
+	}
+
+	if shardBestState.ShardID != common.BridgeShardID {
+		return nil // Only need blocks merkle tree for bridge shard
+	}
+	if rootHash, err := bc.GetShardBlockRootHash(db, shardBestState.ShardID, shardBestState.ShardHeight); err == nil {
+		shardBestState.blockStateDB, err = statedb.NewWithPrefixTrie(rootHash, dbAccessWarper)
 		if err != nil {
 			return err
 		}
@@ -416,4 +435,8 @@ func (blockchain *BlockChain) GetShardFeatureRootHash(db incdb.Database, shardID
 
 func (blockchain *BlockChain) GetShardSlashRootHash(db incdb.Database, shardID byte, height uint64) (common.Hash, error) {
 	return rawdbv2.GetShardSlashRootHash(db, shardID, height)
+}
+
+func (blockchain *BlockChain) GetShardBlockRootHash(db incdb.Database, shardID byte, height uint64) (common.Hash, error) {
+	return rawdbv2.GetShardBlockRootHash(db, shardID, height)
 }

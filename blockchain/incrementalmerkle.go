@@ -1,6 +1,8 @@
 package blockchain
 
-import "github.com/incognitochain/incognito-chain/common"
+import (
+	"github.com/incognitochain/incognito-chain/common"
+)
 
 // IncrementalMerkleTree represents a merkle tree using Keccak256 hash function.
 // We can incrementally add an element and get the root hash at each step.
@@ -12,7 +14,7 @@ type IncrementalMerkleTree struct {
 	hasher hash2
 }
 
-type hash2 func([]byte, []byte) []byte // Receive 2 childs and return the parent hash
+type hash2 func(...[]byte) []byte // Receive 2 childs and return the parent hash
 
 func NewIncrementalMerkleTree(hasher hash2) *IncrementalMerkleTree {
 	return &IncrementalMerkleTree{
