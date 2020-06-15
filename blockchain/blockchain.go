@@ -474,8 +474,46 @@ func (blockchain *BlockChain) RestoreShardViews(shardID byte) error {
 		if err != nil {
 			panic(err)
 		}
+
+		// Build block merkle tree for the first time
+		if shardID != common.BridgeShardID {
+			continue // Only need blocks merkle tree for bridge shard
+		}
+
+		// TODO(0xbunyip): If merkle tree exist in beststate => skip building
+
+		// Get all block hashes of this view and bulid tree
+		hashes, err := getAllHashOfView(blockchain.GetShardChainDatabase(shardID), v)
+		if err != nil {
+			panic(err)
+		}
+		// for i, height := range heights {
+		// 	fmt.Printf("block %d with hash %s\n", height, hashes[i])
+		// }
+		fmt.Println("total block found:", len(hashes))
 	}
 	return nil
+}
+
+func getAllHashOfView(db incdb.Database, view multiview.View) ([]common.Hash, error) {
+	hashes := make([]common.Hash, view.GetHeight())
+	h := *view.GetHash()
+	for i := view.GetHeight(); i > 0; i-- {
+		hashes[i-1] = h
+		blk, err := rawdbv2.GetShardBlockByHash(db, h)
+		if err != nil {
+			return nil, err
+		}
+
+		shardBlock := NewShardBlock()
+		if json.Unmarshal(blk, shardBlock); err != nil {
+			return nil, err
+		}
+
+		h = shardBlock.Header.PreviousBlockHash
+		fmt.Printf("%d \n", i)
+	}
+	return hashes, nil
 }
 
 // -------------- End of Blockchain BackUp And Restore --------------
