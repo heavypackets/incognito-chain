@@ -229,6 +229,30 @@ func GetShardBlockByIndex(db incdb.Database, shardID byte, index uint64) (map[co
 	return m, nil
 }
 
+func GetAllShardBlockHashes(db incdb.Database, shardID byte) ([]common.Hash, []uint64, error) {
+	prefix := GetShardIDToBlockHashPrefix(shardID)
+	iterator := db.NewIteratorWithPrefix(prefix)
+	hashes := []common.Hash{}
+	heights := []uint64{}
+	for iterator.Next() {
+		key := iterator.Key()
+		strs := strings.Split(string(key), string(splitter))
+		if len(strs) != 4 {
+			continue
+		}
+
+		hash := common.BytesToHash([]byte(strs[len(strs)-1]))
+		height, err := common.BytesToUint64([]byte(strs[len(strs)-2]))
+		if err != nil {
+			continue
+		}
+
+		hashes = append(hashes, hash)
+		heights = append(heights, height)
+	}
+	return hashes, heights, nil
+}
+
 func GetIndexOfBlock(db incdb.KeyValueReader, hash common.Hash) (uint64, byte, error) {
 	var index uint64
 	var shardID byte

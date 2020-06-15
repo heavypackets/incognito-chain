@@ -98,6 +98,14 @@ func GetShardIndexToBlockHashPrefix(shardID byte, index uint64) []byte {
 	return key
 }
 
+func GetShardIDToBlockHashPrefix(shardID byte) []byte {
+	temp := make([]byte, 0, len(shardIndexToBlockHashPrefix))
+	temp = append(temp, shardIndexToBlockHashPrefix...)
+	key := append(temp, shardID)
+	key = append(key, splitter...)
+	return key
+}
+
 func GetShardBlockHashToIndexKey(hash common.Hash) []byte {
 	temp := make([]byte, 0, len(shardBlockHashToIndexPrefix))
 	temp = append(temp, shardBlockHashToIndexPrefix...)
