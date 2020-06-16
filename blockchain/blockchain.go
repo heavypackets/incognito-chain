@@ -470,7 +470,8 @@ func (blockchain *BlockChain) RestoreShardViews(shardID byte) error {
 		if !blockchain.ShardChain[shardID].multiView.AddView(v) {
 			panic("Restart shard views fail")
 		}
-		err := v.InitStateRootHash(blockchain.GetShardChainDatabase(shardID), blockchain)
+		db := blockchain.GetShardChainDatabase(shardID)
+		err := v.InitStateRootHash(db, blockchain)
 		if err != nil {
 			panic(err)
 		}
@@ -481,9 +482,10 @@ func (blockchain *BlockChain) RestoreShardViews(shardID byte) error {
 		}
 
 		// TODO(0xbunyip): If merkle tree exist in beststate => skip building
+		// TODO(0xbunyip): hard code block to stard building merkle tree and save to best state
 
-		// Get all block hashes of this view and bulid tree
-		hashes, err := getAllHashOfView(blockchain.GetShardChainDatabase(shardID), v)
+		// Get all block hashes of this view
+		hashes, err := getAllHashOfView(db, v)
 		if err != nil {
 			panic(err)
 		}
@@ -491,15 +493,36 @@ func (blockchain *BlockChain) RestoreShardViews(shardID byte) error {
 		// 	fmt.Printf("block %d with hash %s\n", height, hashes[i])
 		// }
 		fmt.Println("total block found:", len(hashes))
+
+		// Build full merkle tree from the block hashes
+		tree := NewFullMerkleTree(hash2(common.Keccak256Bytes))
+		tree.Add(hashes)
+		if err := storeBlockMerkleTree(v.blockStateDB, shardID, tree); err != nil {
+			panic(err)
+		}
 	}
 	return nil
 }
 
-func getAllHashOfView(db incdb.Database, view multiview.View) ([]common.Hash, error) {
-	hashes := make([]common.Hash, view.GetHeight())
+func storeBlockMerkleTree(stateDB *statedb.StateDB, shardID byte, tree *FullMerkleTree) error {
+	for level, nodes := range tree.nodes {
+		for index, h := range nodes {
+			hash := common.Hash{}
+			hash.SetBytes(h)
+			height := uint64(index + 1) // Block height starts from 1
+			if err := statedb.StoreBlockMerkleNode(stateDB, shardID, byte(level), height, hash); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func getAllHashOfView(db incdb.Database, view multiview.View) ([][]byte, error) {
+	hashes := make([][]byte, view.GetHeight())
 	h := *view.GetHash()
 	for i := view.GetHeight(); i > 0; i-- {
-		hashes[i-1] = h
+		hashes[i-1] = h[:]
 		blk, err := rawdbv2.GetShardBlockByHash(db, h)
 		if err != nil {
 			return nil, err
