@@ -81,6 +81,8 @@ func newStateObjectWithValue(db *StateDB, objectType int, hash common.Hash, valu
 		return newLockedCollateralStateObjectWithValue(db, hash, value)
 	case RewardFeatureStateObjectType:
 		return newRewardFeatureStateObjectWithValue(db, hash, value)
+	case BlockMerkleObjectType:
+		return newBlockMerkleObjectWithValue(db, hash, value)
 	default:
 		panic("state object type not exist")
 	}
@@ -142,6 +144,8 @@ func newStateObject(db *StateDB, objectType int, hash common.Hash) StateObject {
 		return newLockedCollateralStateObject(db, hash)
 	case RewardFeatureStateObjectType:
 		return newRewardFeatureStateObject(db, hash)
+	case BlockMerkleObjectType:
+		return newBlockMerkleObject(db, hash)
 	default:
 		panic("state object type not exist")
 	}

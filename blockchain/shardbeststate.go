@@ -365,6 +365,7 @@ func (shardBestState *ShardBestState) cloneShardBestStateFrom(target *ShardBestS
 	shardBestState.featureStateDB = target.featureStateDB.Copy()
 	shardBestState.rewardStateDB = target.rewardStateDB.Copy()
 	shardBestState.slashStateDB = target.slashStateDB.Copy()
+	shardBestState.blockStateDB = target.blockStateDB.Copy()
 	return nil
 }
 
