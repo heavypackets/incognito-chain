@@ -340,3 +340,21 @@ func GetBeaconSlashStateRootHash(db incdb.KeyValueReader, height uint64) (common
 	}
 	return common.BytesToHash(res), nil
 }
+
+func StoreBeaconBlockRootHash(db incdb.KeyValueWriter, height uint64, rootHash common.Hash) error {
+	key := GetBeaconBlockRootHashKey(height)
+	err := db.Put(key, rootHash[:])
+	if err != nil {
+		return NewRawdbError(StoreBeaconBlockRootHashError, err)
+	}
+	return nil
+}
+
+func GetBeaconBlockRootHash(db incdb.KeyValueReader, height uint64) (common.Hash, error) {
+	key := GetBeaconBlockRootHashKey(height)
+	res, err := db.Get(key)
+	if err != nil {
+		return common.Hash{}, NewRawdbError(GetBeaconBlockRootHashError, err)
+	}
+	return common.BytesToHash(res), nil
+}

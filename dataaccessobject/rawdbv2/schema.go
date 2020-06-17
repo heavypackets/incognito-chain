@@ -33,6 +33,7 @@ var (
 	shardSlashRootHashPrefix           = []byte("s-sl" + string(splitter))
 	shardFeatureRootHashPrefix         = []byte("s-fe" + string(splitter))
 	shardBlockRootHashPrefix           = []byte("s-bk" + string(splitter))
+	beaconBlockRootHashPrefix          = []byte("b-bk" + string(splitter))
 	previousBestStatePrefix            = []byte("previous-best-state" + string(splitter))
 	splitter                           = []byte("-[-]-")
 )
@@ -294,6 +295,19 @@ func GetShardBlockRootHashKey(shardID byte, height uint64) []byte {
 	rootHashPrefix := GetRootHashPrefix()
 	temp := make([]byte, 0, len(shardBlockRootHashPrefix))
 	temp = append(temp, shardBlockRootHashPrefix...)
+	key := append(rootHashPrefix, temp...)
+	key = append(key, shardID)
+	key = append(key, splitter...)
+	key = append(key, buf...)
+	return key
+}
+
+func GetBeaconBlockRootHashKey(height uint64) []byte {
+	shardID := byte(255) // Use shardID = 255 for beacon
+	buf := common.Uint64ToBytes(height)
+	rootHashPrefix := GetRootHashPrefix()
+	temp := make([]byte, 0, len(beaconBlockRootHashPrefix))
+	temp = append(temp, beaconBlockRootHashPrefix...)
 	key := append(rootHashPrefix, temp...)
 	key = append(key, shardID)
 	key = append(key, splitter...)

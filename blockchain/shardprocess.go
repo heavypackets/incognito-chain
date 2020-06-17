@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -722,8 +721,18 @@ func (shardBestState *ShardBestState) initShardBestState(blockchain *BlockChain,
 
 	// Block merkle tree: insert genesis block
 	if genesisShardBlock.Header.ShardID == common.BridgeShardID {
-		if err := addToBlockMerkle(shardBestState, genesisShardBlock); err != nil {
+		if newRootHash, err := addToBlockMerkle(
+			shardBestState.blockStateDB,
+			shardBestState.BlockStateDBRootHash,
+			genesisShardBlock.Header.ShardID,
+			genesisShardBlock.Header.Height,
+			genesisShardBlock.Header.Hash(),
+		); err != nil {
 			return err
+		} else {
+			if err := shardBestState.blockStateDB.Database().TrieDB().Commit(newRootHash, false); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1127,90 +1136,6 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	shardStoreBlockTimer.UpdateSince(startTimeProcessStoreShardBlock)
 	Logger.log.Infof("SHARD %+v | 🔎 %d transactions in block height %+v \n", shardBlock.Header.ShardID, len(shardBlock.Body.Transactions), blockHeight)
 	return nil
-}
-
-// addToBlockMerkle adds a new block to the block merkle tree, commits everything
-// and save the updated root hash to the provided beststate
-func addToBlockMerkle(newShardState *ShardBestState, shardBlock *ShardBlock) error {
-	if err := storeBlockMerkle(newShardState, shardBlock); err != nil {
-		return NewBlockChainError(StoreShardBlockError, err)
-	}
-	blockRootHash, err := newShardState.blockStateDB.Commit(true)
-	if err != nil {
-		return NewBlockChainError(StoreShardBlockError, err)
-	}
-	err = newShardState.blockStateDB.Database().TrieDB().Commit(blockRootHash, false)
-	if err != nil {
-		return NewBlockChainError(StoreShardBlockError, err)
-	}
-	newShardState.BlockStateDBRootHash = blockRootHash
-	return nil
-}
-
-// storeBlockMerkle updates the block merkle tree and stores the (updated) nodes into statedb
-// The block merkle tree root hash is taken from the previous best state and the new block is added
-// This method doesn't commit the new root hash though, caller must call commit and save the root hash accordingly
-func storeBlockMerkle(newShardState *ShardBestState, shardBlock *ShardBlock) error {
-	// Load the current merkle tree
-	tree, err := loadIncrementalMerkle(
-		newShardState.blockStateDB,
-		newShardState.BlockStateDBRootHash,
-		shardBlock.Header.ShardID,
-		shardBlock.Header.Height-1,
-	)
-	if err != nil {
-		return err
-	}
-
-	// Add the new block to the tree and get the changed nodes
-	blkHash := shardBlock.Header.Hash()
-	nodes, indices, err := tree.SimulateAdd(blkHash[:])
-	if err != nil {
-		return err
-	}
-
-	// Store the merkle tree's nodes changed by the new block
-	for level, h := range nodes {
-		hash := common.BytesToHash(h)
-		index := indices[level]
-		if err := statedb.StoreBlockMerkleNode(newShardState.blockStateDB, shardBlock.Header.ShardID, byte(level), index, hash); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// loadIncrementalMerkle reads each node of a merkle tree from statedb and rebuilds it
-// To read from statedb, we must provide rootHash of the tree, shardID to calculate
-// the key in the database and the blockHeight to know the height of the tree.
-func loadIncrementalMerkle(
-	stateDB *statedb.StateDB,
-	rootHash common.Hash,
-	shardID byte,
-	blkHeight uint64,
-) (*IncrementalMerkleTree, error) {
-	index := blkHeight - 1                          // Block h is stored at the leaf with index h-1 in the tree
-	maxLevel := byte(math.Log2(float64(blkHeight))) // Height of the merkle tree
-
-	hashes := make([][]byte, maxLevel)
-	for level := byte(0); level <= maxLevel; level++ {
-		indexAtLevel := (index + 1) >> level
-		if indexAtLevel%2 == 0 {
-			// Left subtree at this level, therefore the IncrementalMerkleTree
-			// doesn't store this node
-			continue
-		}
-
-		if hash, err := statedb.GetBlockMerkleNode(stateDB, shardID, level, indexAtLevel-1); err == nil {
-			hashes[level] = hash[:]
-		} else {
-			return nil, err
-		}
-	}
-
-	tree := InitIncrementalMerkleTree(common.Keccak256Bytes, hashes, blkHeight)
-	return tree, nil
 }
 
 // removeOldDataAfterProcessingShardBlock remove outdate data from pool and beststate

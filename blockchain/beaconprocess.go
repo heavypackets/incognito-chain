@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
+	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 
 	"github.com/incognitochain/incognito-chain/blockchain/btc"
 	"github.com/incognitochain/incognito-chain/common"
@@ -885,13 +886,33 @@ func (beaconBestState *BeaconBestState) initBeaconBestState(genesisBeaconBlock *
 	if err != nil {
 		return err
 	}
+	beaconBestState.blockStateDB, err = statedb.NewWithPrefixTrie(common.EmptyRoot, dbAccessWarper)
+	if err != nil {
+		return err
+	}
 	beaconBestState.ConsensusStateDBRootHash = common.EmptyRoot
 	beaconBestState.SlashStateDBRootHash = common.EmptyRoot
 	beaconBestState.RewardStateDBRootHash = common.EmptyRoot
 	beaconBestState.FeatureStateDBRootHash = common.EmptyRoot
 	beaconBestState.currentPDEState, err = InitCurrentPDEStateFromDB(beaconBestState.featureStateDB, beaconBestState.BeaconHeight)
+	beaconBestState.BlockStateDBRootHash = common.EmptyRoot
 	if err != nil {
 		return err
+	}
+
+	// Block merkle tree: insert genesis block
+	if newRootHash, err := addToBlockMerkle(
+		beaconBestState.blockStateDB,
+		beaconBestState.BlockStateDBRootHash,
+		byte(255), // Use shardID = 255 for beacon
+		genesisBeaconBlock.Header.Height,
+		genesisBeaconBlock.Header.Hash(),
+	); err != nil {
+		return err
+	} else {
+		if err := beaconBestState.blockStateDB.Database().TrieDB().Commit(newRootHash, false); err != nil {
+			return err
+		}
 	}
 	//statedb===========================END
 	return nil
@@ -1389,10 +1410,19 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 		return err
 	}
 	newBestState.SlashStateDBRootHash = slashRootHash
+	blockRootHash, err := newBestState.blockStateDB.Commit(true)
+	if err != nil {
+		return err
+	}
+	err = newBestState.blockStateDB.Database().TrieDB().Commit(blockRootHash, false)
+	if err != nil {
+		return err
+	}
 	newBestState.consensusStateDB.ClearObjects()
 	newBestState.rewardStateDB.ClearObjects()
 	newBestState.featureStateDB.ClearObjects()
 	newBestState.slashStateDB.ClearObjects()
+	newBestState.blockStateDB.ClearObjects()
 	//statedb===========================END
 	batch := blockchain.GetBeaconChainDatabase().NewBatch()
 	//State Root Hash
@@ -1406,6 +1436,9 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 		return NewBlockChainError(StoreBeaconBlockError, err)
 	}
 	if err := rawdbv2.StoreBeaconSlashStateRootHash(batch, blockHeight, slashRootHash); err != nil {
+		return NewBlockChainError(StoreBeaconBlockError, err)
+	}
+	if err := rawdbv2.StoreBeaconBlockRootHash(batch, blockHeight, blockRootHash); err != nil {
 		return NewBlockChainError(StoreBeaconBlockError, err)
 	}
 	if err := rawdbv2.StoreBeaconBlockIndex(batch, blockHeight, blockHash); err != nil {

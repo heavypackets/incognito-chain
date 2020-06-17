@@ -4,12 +4,13 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
-	"github.com/incognitochain/incognito-chain/incdb"
 	"reflect"
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
+	"github.com/incognitochain/incognito-chain/incdb"
 
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
@@ -78,6 +79,8 @@ type BeaconBestState struct {
 	FeatureStateDBRootHash   common.Hash
 	slashStateDB             *statedb.StateDB
 	SlashStateDBRootHash     common.Hash
+	blockStateDB             *statedb.StateDB
+	BlockStateDBRootHash     common.Hash
 }
 
 func (beaconBestState *BeaconBestState) GetBeaconSlashStateDB() *statedb.StateDB {
@@ -171,6 +174,14 @@ func (beaconBestState *BeaconBestState) InitStateRootHashFromDatabase(bc *BlockC
 	} else {
 		return err
 	}
+	if rootHash, err := bc.GetBeaconBlockRootHash(db, beaconBestState.BeaconHeight); err == nil {
+		beaconBestState.blockStateDB, err = statedb.NewWithPrefixTrie(rootHash, dbAccessWarper)
+		if err != nil {
+			return err
+		}
+	} else {
+		return err
+	}
 	return nil
 }
 
@@ -191,6 +202,10 @@ func (beaconBestState *BeaconBestState) InitStateRootHash(bc *BlockChain) error 
 		return err
 	}
 	beaconBestState.slashStateDB, err = statedb.NewWithPrefixTrie(beaconBestState.SlashStateDBRootHash, dbAccessWarper)
+	if err != nil {
+		return err
+	}
+	beaconBestState.blockStateDB, err = statedb.NewWithPrefixTrie(beaconBestState.BlockStateDBRootHash, dbAccessWarper)
 	if err != nil {
 		return err
 	}
@@ -597,6 +612,7 @@ func (beaconBestState *BeaconBestState) cloneBeaconBestStateFrom(target *BeaconB
 	beaconBestState.rewardStateDB = target.rewardStateDB.Copy()
 	beaconBestState.slashStateDB = target.slashStateDB.Copy()
 	//beaconBestState.currentPDEState = target.currentPDEState.Copy()
+	beaconBestState.blockStateDB = target.blockStateDB.Copy()
 	return nil
 }
 
@@ -814,4 +830,8 @@ func (blockchain *BlockChain) GetBeaconFeatureRootHash(db incdb.Database, height
 
 func (blockchain *BlockChain) GetBeaconSlashRootHash(db incdb.Database, height uint64) (common.Hash, error) {
 	return rawdbv2.GetBeaconSlashStateRootHash(db, height)
+}
+
+func (blockchain *BlockChain) GetBeaconBlockRootHash(db incdb.Database, height uint64) (common.Hash, error) {
+	return rawdbv2.GetBeaconBlockRootHash(db, height)
 }

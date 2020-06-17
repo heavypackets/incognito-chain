@@ -44,8 +44,10 @@ const (
 	GetShardFeatureRootHashError
 	DeleteShardFeatureRootHashError
 	StoreShardSlashRootHashError
-	StoreShardBlockRootHashError
 	GetShardSlashRootHashError
+	StoreBeaconBlockRootHashError
+	GetBeaconBlockRootHashError
+	StoreShardBlockRootHashError
 	GetShardBlockRootHashError
 	DeleteShardSlashRootHashError
 	StorePreviousBeaconBestStateError
