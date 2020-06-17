@@ -2,10 +2,11 @@ package statedb
 
 import (
 	"encoding/json"
-	"github.com/incognitochain/incognito-chain/dataaccessobject"
 	"math/big"
 	"strconv"
 	"time"
+
+	"github.com/incognitochain/incognito-chain/dataaccessobject"
 
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/incognitochain/incognito-chain/common"
@@ -1207,6 +1208,18 @@ func (stateDB *StateDB) getBurningConfirmState(key common.Hash) (*BurningConfirm
 		return burningConfirmState.GetValue().(*BurningConfirmState), true, nil
 	}
 	return NewBurningConfirmState(), false, nil
+}
+
+// ================================= Block merkle OBJECT =======================================
+func (stateDB *StateDB) getBlockMerkleNode(key common.Hash) ([]byte, bool, error) {
+	blockMerkleObject, err := stateDB.getStateObject(BlockMerkleObjectType, key)
+	if err != nil {
+		return nil, false, err
+	}
+	if blockMerkleObject != nil {
+		return blockMerkleObject.GetValue().([]byte), true, nil
+	}
+	return nil, false, nil
 }
 
 // ================================= Portal OBJECT =======================================

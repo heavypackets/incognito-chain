@@ -465,7 +465,6 @@ func (blockchain *BlockChain) RestoreShardViews(shardID byte) error {
 		fmt.Println("debug Cannot unmarshall shard best state", string(b))
 		return err
 	}
-	fmt.Println("debug RestoreShardViews", len(allViews))
 	for _, v := range allViews {
 		if !blockchain.ShardChain[shardID].multiView.AddView(v) {
 			panic("Restart shard views fail")
@@ -473,31 +472,6 @@ func (blockchain *BlockChain) RestoreShardViews(shardID byte) error {
 		db := blockchain.GetShardChainDatabase(shardID)
 		err := v.InitStateRootHash(db, blockchain)
 		if err != nil {
-			panic(err)
-		}
-
-		// Build block merkle tree for the first time
-		if shardID != common.BridgeShardID {
-			continue // Only need blocks merkle tree for bridge shard
-		}
-
-		// TODO(0xbunyip): If merkle tree exist in beststate => skip building
-		// TODO(0xbunyip): hard code block to stard building merkle tree and save to best state
-
-		// Get all block hashes of this view
-		hashes, err := getAllHashOfView(db, v)
-		if err != nil {
-			panic(err)
-		}
-		// for i, height := range heights {
-		// 	fmt.Printf("block %d with hash %s\n", height, hashes[i])
-		// }
-		fmt.Println("total block found:", len(hashes))
-
-		// Build full merkle tree from the block hashes
-		tree := NewFullMerkleTree(hash2(common.Keccak256Bytes))
-		tree.Add(hashes)
-		if err := storeBlockMerkleTree(v.blockStateDB, shardID, tree); err != nil {
 			panic(err)
 		}
 	}
@@ -519,6 +493,8 @@ func storeBlockMerkleTree(stateDB *statedb.StateDB, shardID byte, tree *FullMerk
 }
 
 func getAllHashOfView(db incdb.Database, view multiview.View) ([][]byte, error) {
+	// TODO(@0xbunyip): optimize this by iterate from database and remove redundant
+	// blocks by using nextBlock.PreviousBlockHash
 	hashes := make([][]byte, view.GetHeight())
 	h := *view.GetHash()
 	for i := view.GetHeight(); i > 0; i-- {

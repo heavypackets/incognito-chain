@@ -5,7 +5,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/incognitokey"
 )
 
@@ -351,10 +350,4 @@ func DeleteBeaconSubstituteValidator(stateDB *StateDB, beaconSubstitute []incogn
 		return NewStatedbError(DeleteBeaconSubstituteValidatorError, err)
 	}
 	return nil
-}
-
-func StoreBlockMerkleNode(stateDB *StateDB, shardID, level byte, height uint64, hash common.Hash) error {
-	key := GenerateBlockMerkleObjectKey(shardID, level, height)
-	value := hash[:]
-	return stateDB.SetStateObject(BlockMerkleObjectType, key, value)
 }

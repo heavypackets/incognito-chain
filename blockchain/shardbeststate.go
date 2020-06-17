@@ -210,16 +210,15 @@ func (shardBestState *ShardBestState) InitStateRootHashFromDatabase(db incdb.Dat
 		return err
 	}
 
-	if shardBestState.ShardID != common.BridgeShardID {
-		return nil // Only need blocks merkle tree for bridge shard
-	}
-	if rootHash, err := bc.GetShardBlockRootHash(db, shardBestState.ShardID, shardBestState.ShardHeight); err == nil {
-		shardBestState.blockStateDB, err = statedb.NewWithPrefixTrie(rootHash, dbAccessWarper)
-		if err != nil {
+	if shardBestState.ShardID == common.BridgeShardID { // Only need blocks merkle tree for bridge shard
+		if rootHash, err := bc.GetShardBlockRootHash(db, shardBestState.ShardID, shardBestState.ShardHeight); err == nil {
+			shardBestState.blockStateDB, err = statedb.NewWithPrefixTrie(rootHash, dbAccessWarper)
+			if err != nil {
+				return err
+			}
+		} else {
 			return err
 		}
-	} else {
-		return err
 	}
 	return nil
 }

@@ -5,6 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
+	"reflect"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
@@ -14,11 +21,6 @@ import (
 	"github.com/incognitochain/incognito-chain/pubsub"
 	"github.com/incognitochain/incognito-chain/transaction"
 	"github.com/pkg/errors"
-	"reflect"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
 
 // VerifyPreSignShardBlock Verify Shard Block Before Signing
@@ -707,11 +709,16 @@ func (shardBestState *ShardBestState) initShardBestState(blockchain *BlockChain,
 	if err != nil {
 		return err
 	}
+	shardBestState.blockStateDB, err = statedb.NewWithPrefixTrie(common.EmptyRoot, dbAccessWarper)
+	if err != nil {
+		return err
+	}
 	shardBestState.ConsensusStateDBRootHash = common.EmptyRoot
 	shardBestState.SlashStateDBRootHash = common.EmptyRoot
 	shardBestState.RewardStateDBRootHash = common.EmptyRoot
 	shardBestState.FeatureStateDBRootHash = common.EmptyRoot
 	shardBestState.TransactionStateDBRootHash = common.EmptyRoot
+	shardBestState.BlockStateDBRootHash = common.EmptyRoot
 	//statedb===========================END
 	return nil
 }
@@ -1034,11 +1041,30 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	if err != nil {
 		return NewBlockChainError(StoreShardBlockError, err)
 	}
+
+	// blocks merkle tree
+	var blockRootHash common.Hash
+	if shardID == common.BridgeShardID {
+		if err := blockchain.updateAndStoreBlockMerkle(newShardState, shardBlock); err != nil {
+			return NewBlockChainError(StoreShardBlockError, err)
+		}
+		blockRootHash, err = newShardState.blockStateDB.Commit(true)
+		if err != nil {
+			return NewBlockChainError(StoreShardBlockError, err)
+		}
+		err = newShardState.blockStateDB.Database().TrieDB().Commit(blockRootHash, false)
+		if err != nil {
+			return NewBlockChainError(StoreShardBlockError, err)
+		}
+		newShardState.BlockStateDBRootHash = blockRootHash
+	}
+
 	newShardState.consensusStateDB.ClearObjects()
 	newShardState.transactionStateDB.ClearObjects()
 	newShardState.featureStateDB.ClearObjects()
 	newShardState.rewardStateDB.ClearObjects()
 	newShardState.slashStateDB.ClearObjects()
+	newShardState.blockStateDB.ClearObjects()
 
 	batchData := blockchain.GetShardChainDatabase(shardID).NewBatch()
 	if err := rawdbv2.StoreShardConsensusRootHash(batchData, shardID, blockHeight, consensusRootHash); err != nil {
@@ -1055,6 +1081,11 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	}
 	if err := rawdbv2.StoreShardSlashRootHash(batchData, shardID, blockHeight, slashRootHash); err != nil {
 		return NewBlockChainError(StoreShardBlockError, err)
+	}
+	if shardID == common.BridgeShardID {
+		if err := rawdbv2.StoreShardBlockRootHash(batchData, shardID, blockHeight, blockRootHash); err != nil {
+			return NewBlockChainError(StoreShardBlockError, err)
+		}
 	}
 	//statedb===========================END
 	if err := rawdbv2.StoreShardBlock(batchData, shardID, blockHeight, blockHash, shardBlock); err != nil {
@@ -1098,6 +1129,69 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	shardStoreBlockTimer.UpdateSince(startTimeProcessStoreShardBlock)
 	Logger.log.Infof("SHARD %+v | 🔎 %d transactions in block height %+v \n", shardBlock.Header.ShardID, len(shardBlock.Body.Transactions), blockHeight)
 	return nil
+}
+
+// updateAndStoreBlockMerkle updates the block merkle tree and stores the (updated) nodes into statedb
+// The block merkle tree root hash is taken from the previous best state and the new block is added
+// This method doesn't commit the new root hash though, caller must call commit and save the root hash accordingly
+func (blockchain *BlockChain) updateAndStoreBlockMerkle(newShardState *ShardBestState, shardBlock *ShardBlock) error {
+	// Load the current merkle tree
+	tree, err := loadIncrementalMerkle(
+		newShardState.blockStateDB,
+		newShardState.BlockStateDBRootHash,
+		shardBlock.Header.ShardID,
+		shardBlock.Header.Height-1,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Add the new block to the tree and get the changed nodes
+	blkHash := shardBlock.Header.Hash()
+	nodes, indices, err := tree.SimulateAdd(blkHash[:])
+	if err != nil {
+		return err
+	}
+
+	// Store the merkle tree's nodes changed by the new block
+	for level, h := range nodes {
+		hash := common.BytesToHash(h)
+		index := indices[level]
+		if err := statedb.StoreBlockMerkleNode(newShardState.blockStateDB, shardBlock.Header.ShardID, byte(level), index, hash); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func loadIncrementalMerkle(
+	stateDB *statedb.StateDB,
+	rootHash common.Hash,
+	shardID byte,
+	blkHeight uint64,
+) (*IncrementalMerkleTree, error) {
+	index := blkHeight - 1                          // Block h is stored at the leaf with index h-1 in the tree
+	maxLevel := byte(math.Log2(float64(blkHeight))) // Height of the merkle tree
+
+	hashes := make([][]byte, maxLevel)
+	for level := byte(0); level <= maxLevel; level++ {
+		indexAtLevel := (index + 1) >> level
+		if indexAtLevel%2 == 0 {
+			// Left subtree at this level, therefore the IncrementalMerkleTree
+			// doesn't store this node
+			continue
+		}
+
+		if hash, err := statedb.GetBlockMerkleNode(stateDB, shardID, level, indexAtLevel-1); err == nil {
+			hashes[level] = hash[:]
+		} else {
+			return nil, err
+		}
+	}
+
+	tree := InitIncrementalMerkleTree(common.Keccak256Bytes, hashes, blkHeight)
+	return tree, nil
 }
 
 // removeOldDataAfterProcessingShardBlock remove outdate data from pool and beststate

@@ -24,6 +24,14 @@ func NewIncrementalMerkleTree(hasher hash2) *IncrementalMerkleTree {
 	}
 }
 
+func InitIncrementalMerkleTree(hasher hash2, nodes [][]byte, length uint64) *IncrementalMerkleTree {
+	return &IncrementalMerkleTree{
+		nodes:  nodes,
+		length: length,
+		hasher: hasher,
+	}
+}
+
 // Add receives a list of new leaf nodes and update the tree accordingly
 func (tree *IncrementalMerkleTree) Add(data [][]byte) {
 	for _, d := range data {
@@ -48,6 +56,10 @@ func (tree *IncrementalMerkleTree) Add(data [][]byte) {
 		}
 	}
 	tree.length += uint64(len(data))
+}
+
+func (tree *IncrementalMerkleTree) SimulateAdd(data []byte) ([][]byte, []uint64, error) {
+	return nil, nil, nil
 }
 
 // GetRoot calculates the root of the merkle tree built so far

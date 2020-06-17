@@ -201,6 +201,10 @@ const (
 	GetAllRewardFeatureError
 	ResetAllFeatureRewardByTokenIDError
 	GetRewardFeatureAmountByTokenIDError
+
+	// block merkle tree
+	StoreBlockMerkleError
+	GetBlockMerkleError
 )
 
 var ErrCodeMessage = map[int]struct {
@@ -327,6 +331,9 @@ var ErrCodeMessage = map[int]struct {
 	GetRewardFeatureError:                {-15001, "Get reward feature state error"},
 	GetAllRewardFeatureError:             {-15002, "Get all reward feature state error"},
 	GetRewardFeatureAmountByTokenIDError: {-15003, "Get reward feature amount by tokenID error"},
+
+	StoreBlockMerkleError: {-16000, "Store block merkle node error"},
+	GetBlockMerkleError:   {-16001, "Get block merkle node error"},
 }
 
 type StatedbError struct {
