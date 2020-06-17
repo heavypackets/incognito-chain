@@ -722,7 +722,7 @@ func (shardBestState *ShardBestState) initShardBestState(blockchain *BlockChain,
 
 	// Block merkle tree: insert genesis block
 	if genesisShardBlock.Header.ShardID == common.BridgeShardID {
-		if err := blockchain.addToBlockMerkle(shardBestState, genesisShardBlock); err != nil {
+		if err := addToBlockMerkle(shardBestState, genesisShardBlock); err != nil {
 			return err
 		}
 	}
@@ -1049,10 +1049,12 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	if err != nil {
 		return NewBlockChainError(StoreShardBlockError, err)
 	}
-
 	// blocks merkle tree
 	var blockRootHash common.Hash
 	if shardID == common.BridgeShardID {
+		if blockRootHash, err = newShardState.blockStateDB.Commit(true); err != nil {
+			return NewBlockChainError(StoreShardBlockError, err)
+		}
 	}
 
 	newShardState.consensusStateDB.ClearObjects()
@@ -1129,8 +1131,8 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 
 // addToBlockMerkle adds a new block to the block merkle tree, commits everything
 // and save the updated root hash to the provided beststate
-func (blockchain *BlockChain) addToBlockMerkle(newShardState *ShardBestState, shardBlock *ShardBlock) error {
-	if err := blockchain.storeBlockMerkle(newShardState, shardBlock); err != nil {
+func addToBlockMerkle(newShardState *ShardBestState, shardBlock *ShardBlock) error {
+	if err := storeBlockMerkle(newShardState, shardBlock); err != nil {
 		return NewBlockChainError(StoreShardBlockError, err)
 	}
 	blockRootHash, err := newShardState.blockStateDB.Commit(true)
@@ -1148,7 +1150,7 @@ func (blockchain *BlockChain) addToBlockMerkle(newShardState *ShardBestState, sh
 // storeBlockMerkle updates the block merkle tree and stores the (updated) nodes into statedb
 // The block merkle tree root hash is taken from the previous best state and the new block is added
 // This method doesn't commit the new root hash though, caller must call commit and save the root hash accordingly
-func (blockchain *BlockChain) storeBlockMerkle(newShardState *ShardBestState, shardBlock *ShardBlock) error {
+func storeBlockMerkle(newShardState *ShardBestState, shardBlock *ShardBlock) error {
 	// Load the current merkle tree
 	tree, err := loadIncrementalMerkle(
 		newShardState.blockStateDB,

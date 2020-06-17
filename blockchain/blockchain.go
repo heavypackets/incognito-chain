@@ -458,7 +458,6 @@ func (blockchain *BlockChain) RestoreShardViews(shardID byte) error {
 	b, err := rawdbv2.GetShardBestState(blockchain.GetShardChainDatabase(shardID), shardID)
 	if err != nil {
 		fmt.Println("debug Cannot see shard best state")
-		return nil
 		return err
 	}
 	err = json.Unmarshal(b, &allViews)
