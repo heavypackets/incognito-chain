@@ -1165,6 +1165,9 @@ func (blockchain *BlockChain) updateAndStoreBlockMerkle(newShardState *ShardBest
 	return nil
 }
 
+// loadIncrementalMerkle reads each node of a merkle tree from statedb and rebuilds it
+// To read from statedb, we must provide rootHash of the tree, shardID to calculate
+// the key in the database and the blockHeight to know the height of the tree.
 func loadIncrementalMerkle(
 	stateDB *statedb.StateDB,
 	rootHash common.Hash,

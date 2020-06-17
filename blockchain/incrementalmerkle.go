@@ -58,8 +58,36 @@ func (tree *IncrementalMerkleTree) Add(data [][]byte) {
 	tree.length += uint64(len(data))
 }
 
+// SimulateAdd simulates adding a single element to the tree and returns the updated nodes
+// This method helps updating the merkle tree in database without having to update all nodes
+// The return values are the hash of the updated nodes and their indices at each level
 func (tree *IncrementalMerkleTree) SimulateAdd(data []byte) ([][]byte, []uint64, error) {
-	return nil, nil, nil
+	// Get hash of the leaf of new node
+	hash := common.Keccak256(data)
+	h := hash[:]
+
+	updatedNodes := [][]byte{}
+	updatedIdxs := []uint64{}
+	added := false // If it stays false, the tree height grew by 1
+	id := tree.length - 1
+	for _, sibling := range tree.nodes {
+		updatedNodes = append(updatedNodes, h)
+		updatedIdxs = append(updatedIdxs, id)
+		id = id / 2
+
+		if sibling != nil {
+			h = tree.hasher(sibling, h) // Exist, must be left sibling
+		} else {
+			added = true // Not exist, save the new node at this height
+			break
+		}
+	}
+
+	if !added {
+		updatedNodes = append(updatedNodes, h)
+		updatedIdxs = append(updatedIdxs, id)
+	}
+	return updatedNodes, updatedIdxs, nil
 }
 
 // GetRoot calculates the root of the merkle tree built so far

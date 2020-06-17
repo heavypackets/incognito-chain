@@ -5,9 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/metrics"
 	"os"
 	"syscall"
+
+	"github.com/incognitochain/incognito-chain/metrics"
 
 	"github.com/google/uuid"
 	"github.com/incognitochain/incognito-chain/blockchain"
@@ -62,6 +63,7 @@ func init() {
 	//	panic("Cannot open to monitor file")
 	//}
 
+	return
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		idle0, total0 := getCPUSample()
