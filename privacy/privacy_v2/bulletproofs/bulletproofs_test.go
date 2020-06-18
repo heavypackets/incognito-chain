@@ -74,14 +74,14 @@ func TestEncodeVectors(t *testing.T) {
 		n := privacy_util.MaxExp
 		a := make([]*operation.Scalar, n)
 		b := make([]*operation.Scalar, n)
-		G := make([]*operation.Point, n)
-		H := make([]*operation.Point, n)
+		G := make([]*operation.PointExtended, n)
+		H := make([]*operation.PointExtended, n)
 
-		for i := range a {
-			a[i] = operation.RandomScalar()
-			b[i] = operation.RandomScalar()
-			G[i] = new(operation.Point).Set(AggParam.g[i])
-			H[i] = new(operation.Point).Set(AggParam.h[i])
+		for j := range a {
+			a[j] = operation.RandomScalar()
+			b[j] = operation.RandomScalar()
+			G[j] = new(operation.PointExtended).Set(AggParam.g[j])
+			H[j] = new(operation.PointExtended).Set(AggParam.h[j])
 		}
 
 		actualRes, err := encodeVectors(a, b, G, H)
@@ -89,10 +89,10 @@ func TestEncodeVectors(t *testing.T) {
 			fmt.Printf("Err: %v\n", err)
 		}
 
-		expectedRes := new(operation.Point).Identity()
-		for i := 0; i < n; i++ {
-			expectedRes.Add(expectedRes, new(operation.Point).ScalarMult(G[i], a[i]))
-			expectedRes.Add(expectedRes, new(operation.Point).ScalarMult(H[i], b[i]))
+		expectedRes := new(operation.PointExtended).Identity()
+		for j := 0; j < n; j++ {
+			expectedRes.Add(expectedRes, new(operation.PointExtended).ScalarMult(G[j], a[j]))
+			expectedRes.Add(expectedRes, new(operation.PointExtended).ScalarMult(H[j], b[j]))
 		}
 
 		assert.Equal(t, expectedRes, actualRes)
@@ -122,11 +122,11 @@ func TestInnerProductProveVerify(t *testing.T) {
 		}
 
 		c, _ := innerProduct(wit.a, wit.b)
-		wit.p = new(operation.Point).ScalarMult(aggParam.u, c)
+		wit.p = new(operation.PointExtended).ScalarMult(aggParam.u, c)
 
 		for i := range wit.a {
-			wit.p.Add(wit.p, new(operation.Point).ScalarMult(aggParam.g[i], wit.a[i]))
-			wit.p.Add(wit.p, new(operation.Point).ScalarMult(aggParam.h[i], wit.b[i]))
+			wit.p.Add(wit.p, new(operation.PointExtended).ScalarMult(aggParam.g[i], wit.a[i]))
+			wit.p.Add(wit.p, new(operation.PointExtended).ScalarMult(aggParam.h[i], wit.b[i]))
 		}
 
 		proof, err := wit.Prove(aggParam.g, aggParam.h, aggParam.u, aggParam.cs.ToBytesS())

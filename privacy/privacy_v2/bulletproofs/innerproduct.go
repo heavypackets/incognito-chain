@@ -10,26 +10,26 @@ import (
 type InnerProductWitness struct {
 	a []*operation.Scalar
 	b []*operation.Scalar
-	p *operation.Point
+	p *operation.PointExtended
 }
 
 type InnerProductProof struct {
-	l []*operation.Point
-	r []*operation.Point
+	l []*operation.PointExtended
+	r []*operation.PointExtended
 	a *operation.Scalar
 	b *operation.Scalar
-	p *operation.Point
+	p *operation.PointExtended
 }
 
 func (inner *InnerProductProof) Init() *InnerProductProof {
 	if inner == nil {
 		inner = new(InnerProductProof)
 	}
-	inner.l = []*operation.Point{}
-	inner.r = []*operation.Point{}
+	inner.l = []*operation.PointExtended{}
+	inner.r = []*operation.PointExtended{}
 	inner.a = new(operation.Scalar)
 	inner.b = new(operation.Scalar)
-	inner.p = new(operation.Point).Identity()
+	inner.p = new(operation.PointExtended).Identity()
 
 	return inner
 }
@@ -77,18 +77,18 @@ func (proof *InnerProductProof) SetBytes(bytes []byte) error {
 	offset := 1
 	var err error
 
-	proof.l = make([]*operation.Point, lenLArray)
+	proof.l = make([]*operation.PointExtended, lenLArray)
 	for i := 0; i < lenLArray; i++ {
-		proof.l[i], err = new(operation.Point).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
+		proof.l[i], err = new(operation.PointExtended).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 		if err != nil {
 			return err
 		}
 		offset += operation.Ed25519KeySize
 	}
 
-	proof.r = make([]*operation.Point, lenLArray)
+	proof.r = make([]*operation.PointExtended, lenLArray)
 	for i := 0; i < lenLArray; i++ {
-		proof.r[i], err = new(operation.Point).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
+		proof.r[i], err = new(operation.PointExtended).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 		if err != nil {
 			return err
 		}
@@ -101,7 +101,7 @@ func (proof *InnerProductProof) SetBytes(bytes []byte) error {
 	proof.b = new(operation.Scalar).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 	offset += operation.Ed25519KeySize
 
-	proof.p, err = new(operation.Point).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
+	proof.p, err = new(operation.PointExtended).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (proof *InnerProductProof) SetBytes(bytes []byte) error {
 	return nil
 }
 
-func (wit InnerProductWitness) Prove(GParam []*operation.Point, HParam []*operation.Point, uParam *operation.Point, hashCache []byte) (*InnerProductProof, error) {
+func (wit InnerProductWitness) Prove(GParam []*operation.PointExtended, HParam []*operation.PointExtended, uParam *operation.PointExtended, hashCache []byte) (*InnerProductProof, error) {
 	if len(wit.a) != len(wit.b) {
 		return nil, errors.New("invalid inputs")
 	}
@@ -124,18 +124,18 @@ func (wit InnerProductWitness) Prove(GParam []*operation.Point, HParam []*operat
 		b[i] = new(operation.Scalar).Set(wit.b[i])
 	}
 
-	p := new(operation.Point).Set(wit.p)
-	G := make([]*operation.Point, N)
-	H := make([]*operation.Point, N)
+	p := new(operation.PointExtended).Set(wit.p)
+	G := make([]*operation.PointExtended, N)
+	H := make([]*operation.PointExtended, N)
 	for i := range G {
-		G[i] = new(operation.Point).Set(GParam[i])
-		H[i] = new(operation.Point).Set(HParam[i])
+		G[i] = new(operation.PointExtended).Set(GParam[i])
+		H[i] = new(operation.PointExtended).Set(HParam[i])
 	}
 
 	proof := new(InnerProductProof)
-	proof.l = make([]*operation.Point, 0)
-	proof.r = make([]*operation.Point, 0)
-	proof.p = new(operation.Point).Set(wit.p)
+	proof.l = make([]*operation.PointExtended, 0)
+	proof.r = make([]*operation.PointExtended, 0)
+	proof.p = new(operation.PointExtended).Set(wit.p)
 
 	for N > 1 {
 		nPrime := N / 2
@@ -153,17 +153,17 @@ func (wit InnerProductWitness) Prove(GParam []*operation.Point, HParam []*operat
 		if err != nil {
 			return nil, err
 		}
-		L.Add(L, new(operation.Point).ScalarMult(uParam, cL))
+		L.Add(L, new(operation.PointExtended).ScalarMult(uParam, cL))
 		proof.l = append(proof.l, L)
 
 		R, err := encodeVectors(a[nPrime:], b[:nPrime], G[:nPrime], H[nPrime:])
 		if err != nil {
 			return nil, err
 		}
-		R.Add(R, new(operation.Point).ScalarMult(uParam, cR))
+		R.Add(R, new(operation.PointExtended).ScalarMult(uParam, cR))
 		proof.r = append(proof.r, R)
 
-		x := generateChallenge(hashCache, []*operation.Point{L, R})
+		x := generateChallenge(hashCache, []*operation.PointExtended{L, R})
 		hashCache = new(operation.Scalar).Set(x).ToBytesS()
 
 		xInverse := new(operation.Scalar).Invert(x)
@@ -171,16 +171,16 @@ func (wit InnerProductWitness) Prove(GParam []*operation.Point, HParam []*operat
 		xSquareInverse := new(operation.Scalar).Mul(xInverse, xInverse)
 
 		// calculate GPrime, HPrime, PPrime for the next loop
-		GPrime := make([]*operation.Point, nPrime)
-		HPrime := make([]*operation.Point, nPrime)
+		GPrime := make([]*operation.PointExtended, nPrime)
+		HPrime := make([]*operation.PointExtended, nPrime)
 
 		for i := range GPrime {
-			GPrime[i] = new(operation.Point).AddPedersen(xInverse, G[i], x, G[i+nPrime])
-			HPrime[i] = new(operation.Point).AddPedersen(x, H[i], xInverse, H[i+nPrime])
+			GPrime[i] = new(operation.PointExtended).AddPedersen(xInverse, G[i], x, G[i+nPrime])
+			HPrime[i] = new(operation.PointExtended).AddPedersen(x, H[i], xInverse, H[i+nPrime])
 		}
 
 		// x^2 * l + P + xInverse^2 * r
-		PPrime := new(operation.Point).AddPedersen(xSquare, L, xSquareInverse, R)
+		PPrime := new(operation.PointExtended).AddPedersen(xSquare, L, xSquareInverse, R)
 		PPrime.Add(PPrime, p)
 
 		// calculate aPrime, bPrime
@@ -208,37 +208,38 @@ func (wit InnerProductWitness) Prove(GParam []*operation.Point, HParam []*operat
 
 	return proof, nil
 }
-func (proof InnerProductProof) Verify(GParam []*operation.Point, HParam []*operation.Point, uParam *operation.Point, hashCache []byte) bool {
+
+func (proof InnerProductProof) Verify(GParam []*operation.PointExtended, HParam []*operation.PointExtended, uParam *operation.PointExtended, hashCache []byte) bool {
 	//var aggParam = newBulletproofParams(1)
-	p := new(operation.Point)
+	p := new(operation.PointExtended)
 	p.Set(proof.p)
 
 	n := len(GParam)
-	G := make([]*operation.Point, n)
-	H := make([]*operation.Point, n)
+	G := make([]*operation.PointExtended, n)
+	H := make([]*operation.PointExtended, n)
 	for i := range G {
-		G[i] = new(operation.Point).Set(GParam[i])
-		H[i] = new(operation.Point).Set(HParam[i])
+		G[i] = new(operation.PointExtended).Set(GParam[i])
+		H[i] = new(operation.PointExtended).Set(HParam[i])
 	}
 
 	for i := range proof.l {
 		nPrime := n / 2
-		x := generateChallenge(hashCache, []*operation.Point{proof.l[i], proof.r[i]})
+		x := generateChallenge(hashCache, []*operation.PointExtended{proof.l[i], proof.r[i]})
 		hashCache = new(operation.Scalar).Set(x).ToBytesS()
 		xInverse := new(operation.Scalar).Invert(x)
 		xSquare := new(operation.Scalar).Mul(x, x)
 		xSquareInverse := new(operation.Scalar).Mul(xInverse, xInverse)
 
 		// calculate GPrime, HPrime, PPrime for the next loop
-		GPrime := make([]*operation.Point, nPrime)
-		HPrime := make([]*operation.Point, nPrime)
+		GPrime := make([]*operation.PointExtended, nPrime)
+		HPrime := make([]*operation.PointExtended, nPrime)
 
 		for j := 0; j < len(GPrime); j++ {
-			GPrime[j] = new(operation.Point).AddPedersen(xInverse, G[j], x, G[j+nPrime])
-			HPrime[j] = new(operation.Point).AddPedersen(x, H[j], xInverse, H[j+nPrime])
+			GPrime[j] = new(operation.PointExtended).AddPedersen(xInverse, G[j], x, G[j+nPrime])
+			HPrime[j] = new(operation.PointExtended).AddPedersen(x, H[j], xInverse, H[j+nPrime])
 		}
 		// calculate x^2 * l + P + xInverse^2 * r
-		PPrime := new(operation.Point).AddPedersen(xSquare, proof.l[i], xSquareInverse, proof.r[i])
+		PPrime := new(operation.PointExtended).AddPedersen(xSquare, proof.l[i], xSquareInverse, proof.r[i])
 		PPrime.Add(PPrime, p)
 
 		p = PPrime
@@ -248,9 +249,9 @@ func (proof InnerProductProof) Verify(GParam []*operation.Point, HParam []*opera
 	}
 
 	c := new(operation.Scalar).Mul(proof.a, proof.b)
-	rightPoint := new(operation.Point).AddPedersen(proof.a, G[0], proof.b, H[0])
-	rightPoint.Add(rightPoint, new(operation.Point).ScalarMult(uParam, c))
-	res := operation.IsPointEqual(rightPoint, p)
+	rightPoint := new(operation.PointExtended).AddPedersen(proof.a, G[0], proof.b, H[0])
+	rightPoint.Add(rightPoint, new(operation.PointExtended).ScalarMult(uParam, c))
+	res := operation.IsPointExtendedEqual(rightPoint, p)
 	if !res {
 		Logger.Log.Error("Inner product argument failed:")
 		Logger.Log.Error("p: %v\n", p)
@@ -260,19 +261,19 @@ func (proof InnerProductProof) Verify(GParam []*operation.Point, HParam []*opera
 	return res
 }
 
-func (proof InnerProductProof) VerifyFaster(GParam []*operation.Point, HParam []*operation.Point, uParam *operation.Point, hashCache []byte) bool {
+func (proof InnerProductProof) VerifyFaster(GParam []*operation.PointExtended, HParam []*operation.PointExtended, uParam *operation.PointExtended, hashCache []byte) bool {
 	//var aggParam = newBulletproofParams(1)
-	p := new(operation.Point)
+	p := new(operation.PointExtended)
 	p.Set(proof.p)
 	n := len(GParam)
-	G := make([]*operation.Point, n)
-	H := make([]*operation.Point, n)
+	G := make([]*operation.PointExtended, n)
+	H := make([]*operation.PointExtended, n)
 	s := make([]*operation.Scalar, n)
 	sInverse := make([]*operation.Scalar, n)
 
 	for i := range G {
-		G[i] = new(operation.Point).Set(GParam[i])
-		H[i] = new(operation.Point).Set(HParam[i])
+		G[i] = new(operation.PointExtended).Set(GParam[i])
+		H[i] = new(operation.PointExtended).Set(HParam[i])
 		s[i] = new(operation.Scalar).FromUint64(1)
 		sInverse[i] = new(operation.Scalar).FromUint64(1)
 	}
@@ -286,7 +287,7 @@ func (proof InnerProductProof) VerifyFaster(GParam []*operation.Point, HParam []
 
 	for i := range proof.l {
 		// calculate challenge x = hash(hash(G || H || u || p) || x || l || r)
-		xList[i] = generateChallenge(hashCache, []*operation.Point{proof.l[i], proof.r[i]})
+		xList[i] = generateChallenge(hashCache, []*operation.PointExtended{proof.l[i], proof.r[i]})
 		hashCache = new(operation.Scalar).Set(xList[i]).ToBytesS()
 
 		xInverseList[i] = new(operation.Scalar).Invert(xList[i])
@@ -307,21 +308,21 @@ func (proof InnerProductProof) VerifyFaster(GParam []*operation.Point, HParam []
 
 	// Compute (g^s)^a (h^-s)^b u^(ab) = p l^(x^2) r^(-x^2)
 	c := new(operation.Scalar).Mul(proof.a, proof.b)
-	rightHSPart1 := new(operation.Point).MultiScalarMult(s, G)
+	rightHSPart1 := new(operation.PointExtended).MultiScalarMult(s, G)
 	rightHSPart1.ScalarMult(rightHSPart1, proof.a)
-	rightHSPart2 := new(operation.Point).MultiScalarMult(sInverse, H)
+	rightHSPart2 := new(operation.PointExtended).MultiScalarMult(sInverse, H)
 	rightHSPart2.ScalarMult(rightHSPart2, proof.b)
 
-	rightHS := new(operation.Point).Add(rightHSPart1, rightHSPart2)
-	rightHS.Add(rightHS, new(operation.Point).ScalarMult(uParam, c))
+	rightHS := new(operation.PointExtended).Add(rightHSPart1, rightHSPart2)
+	rightHS.Add(rightHS, new(operation.PointExtended).ScalarMult(uParam, c))
 
-	leftHSPart1 := new(operation.Point).MultiScalarMult(xSquareList, proof.l)
-	leftHSPart2 := new(operation.Point).MultiScalarMult(xInverseSquare_List, proof.r)
+	leftHSPart1 := new(operation.PointExtended).MultiScalarMult(xSquareList, proof.l)
+	leftHSPart2 := new(operation.PointExtended).MultiScalarMult(xInverseSquare_List, proof.r)
 
-	leftHS := new(operation.Point).Add(leftHSPart1, leftHSPart2)
+	leftHS := new(operation.PointExtended).Add(leftHSPart1, leftHSPart2)
 	leftHS.Add(leftHS, proof.p)
 
-	res := operation.IsPointEqual(rightHS, leftHS)
+	res := operation.IsPointExtendedEqual(rightHS, leftHS)
 	if !res {
 		Logger.Log.Error("Inner product argument failed:")
 		Logger.Log.Error("LHS: %v\n", leftHS)

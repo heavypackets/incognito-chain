@@ -25,12 +25,12 @@ func ConvertUint64ToBinary(number uint64, n int) []*operation.Scalar {
 	return binary
 }
 
-func computeHPrime(y *operation.Scalar, N int, H []*operation.Point) []*operation.Point {
+func computeHPrime(y *operation.Scalar, N int, H []*operation.PointExtended) []*operation.PointExtended {
 	yInverse := new(operation.Scalar).Invert(y)
-	HPrime := make([]*operation.Point, N)
+	HPrime := make([]*operation.PointExtended, N)
 	expyInverse := new(operation.Scalar).FromUint64(1)
 	for i := 0; i < N; i++ {
-		HPrime[i] = new(operation.Point).ScalarMult(H[i], expyInverse)
+		HPrime[i] = new(operation.PointExtended).ScalarMult(H[i], expyInverse)
 		expyInverse.Mul(expyInverse, yInverse)
 	}
 	return HPrime
@@ -155,13 +155,13 @@ func vectorMulScalar(v []*operation.Scalar, s *operation.Scalar) []*operation.Sc
 }
 
 // CommitAll commits a list of PCM_CAPACITY value(s)
-func encodeVectors(l []*operation.Scalar, r []*operation.Scalar, g []*operation.Point, h []*operation.Point) (*operation.Point, error) {
+func encodeVectors(l []*operation.Scalar, r []*operation.Scalar, g []*operation.PointExtended, h []*operation.PointExtended) (*operation.PointExtended, error) {
 	if len(l) != len(r) || len(g) != len(l) || len(h) != len(g) {
 		return nil, errors.New("Invalid input")
 	}
-	tmp1 := new(operation.Point).MultiScalarMult(l, g)
-	tmp2 := new(operation.Point).MultiScalarMult(r, h)
-	res := new(operation.Point).Add(tmp1, tmp2)
+	tmp1 := new(operation.PointExtended).MultiScalarMult(l, g)
+	tmp2 := new(operation.PointExtended).MultiScalarMult(r, h)
+	res := new(operation.PointExtended).Add(tmp1, tmp2)
 	return res, nil
 }
 
@@ -172,26 +172,26 @@ func newBulletproofParams(m int) *bulletproofParams {
 	maxOutputCoin := privacy_util.MaxOutputCoin
 	capacity := maxExp * m // fixed value
 	param := new(bulletproofParams)
-	param.g = make([]*operation.Point, capacity)
-	param.h = make([]*operation.Point, capacity)
+	param.g = make([]*operation.PointExtended, capacity)
+	param.h = make([]*operation.PointExtended, capacity)
 	csByte := []byte{}
 
 	for i := 0; i < capacity; i++ {
-		param.g[i] = operation.HashToPointFromIndex(int64(numCommitValue+i), operation.CStringBulletProof)
-		param.h[i] = operation.HashToPointFromIndex(int64(numCommitValue+i+maxOutputCoin*maxExp), operation.CStringBulletProof)
+		param.g[i] = operation.HashToPointExtendedFromIndex(int64(numCommitValue+i), operation.CStringBulletProof)
+		param.h[i] = operation.HashToPointExtendedFromIndex(int64(numCommitValue+i+maxOutputCoin*maxExp), operation.CStringBulletProof)
 		csByte = append(csByte, param.g[i].ToBytesS()...)
 		csByte = append(csByte, param.h[i].ToBytesS()...)
 	}
 
-	param.u = new(operation.Point)
-	param.u = operation.HashToPointFromIndex(int64(numCommitValue+2*maxOutputCoin*maxExp), operation.CStringBulletProof)
+	param.u = new(operation.PointExtended)
+	param.u = operation.HashToPointExtendedFromIndex(int64(numCommitValue+2*maxOutputCoin*maxExp), operation.CStringBulletProof)
 	csByte = append(csByte, param.u.ToBytesS()...)
 
-	param.cs = operation.HashToPoint(csByte)
+	param.cs = operation.HashToPointExtended(csByte)
 	return param
 }
 
-func generateChallenge(hashCache []byte, values []*operation.Point) *operation.Scalar {
+func generateChallenge(hashCache []byte, values []*operation.PointExtended) *operation.Scalar {
 	bytes := []byte{}
 	bytes = append(bytes, hashCache...)
 	for i := 0; i < len(values); i++ {
