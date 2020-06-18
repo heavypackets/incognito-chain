@@ -86,7 +86,7 @@ func (p *KeyExtended) HashToPoint() (result *KeyExtended) {
 // there are no side-effects or degradtion of curve25519, due to this
 // however, the mistakes have to kept as they were in original code base
 // this function is only used to generate H from G
-func (p *KeyExtended) HashToPointSimple() (result KeyExtended) {
+func (p *KeyExtended) HashToKeySimple() (result KeyExtended) {
 	toBeHashed := p.ToBytes()
 	h := Key(Keccak256(toBeHashed[:]))
 	extended := new(ExtendedGroupElement)
@@ -106,18 +106,24 @@ func (p *KeyExtended) HashToPointSimple() (result KeyExtended) {
 	return
 }
 
-func RandomPoint()  *KeyExtended {
-	var result = new(Key)
-	var reduceFrom [KeyLength * 2]byte
-	tmp := make([]byte, KeyLength*2)
-	rand.Read(tmp)
-	copy(reduceFrom[:], tmp)
-	ScReduce(result, &reduceFrom)
+func RandomKeyExtended()  *KeyExtended {
+	for i:=0; i<100; i++{
+		var result = new(Key)
+		var reduceFrom [KeyLength * 2]byte
+		tmp := make([]byte, KeyLength*2)
+		rand.Read(tmp)
+		copy(reduceFrom[:], tmp)
+		ScReduce(result, &reduceFrom)
 
-	var res = new(KeyExtended)
-	res.Point = result.ToExtended()
+		var res = new(KeyExtended)
+		if result.Public_Key_Valid() {
+			res.Point = result.ToExtended()
+			return res
+		}
 
-	return res
+	}
+
+	return nil
 }
 
 // generate a new private-public key pair

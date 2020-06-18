@@ -106,3 +106,63 @@ func TestScalarMultKeyExtended(t *testing.T) {
 
 
 }
+
+func TestKeyExtended_FromBytes(t *testing.T) {
+	for i:=0; i< 1000; i++ {
+		expected := RandomKeyExtended()
+
+		tmp := expected.ToBytes()
+
+		actual := new(KeyExtended)
+		key := new(Key)
+		key.FromBytes(tmp)
+
+		err := actual.FromBytes(key)
+
+		if err != nil {
+			fmt.Println(tmp)
+			fmt.Println(key)
+			fmt.Println(key.Private_Key_Valid())
+			panic("Invalid input!")
+		}
+
+		assert.Equal(t, actual, expected)
+	}
+}
+
+func TestKeyExtended_ToBytes(t *testing.T) {
+	for i:= 0; i< 1000; i++ {
+		expected := RandomPubKey()
+
+		tmp := new(KeyExtended)
+		err := tmp.FromBytes(expected)
+
+		if err != nil {
+			panic("Invalid input!")
+		}
+
+		actual := tmp.ToBytes()
+
+		assert.Equal(t, actual, expected.ToBytes())
+
+	}
+}
+
+func TestKeyExtended_HashToEC(t *testing.T) {
+	for i:=0; i< 1000; i++ {
+		p := RandomPubKey()
+
+		expected := p.HashToEC()
+
+		q := new(KeyExtended)
+
+		err := q.FromBytes(p)
+		if err != nil {
+			panic("Invalid input!")
+		}
+
+		actual := q.HashToEC()
+
+		assert.Equal(t, expected, actual.Point)
+	}
+}
