@@ -4,19 +4,17 @@ import (
 	"github.com/incognitochain/incognito-chain/common"
 )
 
-// IncrementalMerkleTree represents a merkle tree using Keccak256 hash function.
+// IncrementalMerkleTree represents a merkle tree using an arbitrary hash function.
 // We can incrementally add an element and get the root hash at each step.
 // Note: this data structure is optimized for storage, therefore we cannot get
 // a merkle proof at an arbitrary position.
 type IncrementalMerkleTree struct {
 	nodes  [][]byte
 	length uint64
-	hasher hash2
+	hasher common.Hasher
 }
 
-type hash2 func(...[]byte) []byte // Receive 2 childs and return the parent hash
-
-func NewIncrementalMerkleTree(hasher hash2) *IncrementalMerkleTree {
+func NewIncrementalMerkleTree(hasher common.Hasher) *IncrementalMerkleTree {
 	return &IncrementalMerkleTree{
 		nodes:  make([][]byte, 0),
 		length: 0,
@@ -24,7 +22,7 @@ func NewIncrementalMerkleTree(hasher hash2) *IncrementalMerkleTree {
 	}
 }
 
-func InitIncrementalMerkleTree(hasher hash2, nodes [][]byte, length uint64) *IncrementalMerkleTree {
+func InitIncrementalMerkleTree(hasher common.Hasher, nodes [][]byte, length uint64) *IncrementalMerkleTree {
 	return &IncrementalMerkleTree{
 		nodes:  nodes,
 		length: length,
@@ -34,16 +32,18 @@ func InitIncrementalMerkleTree(hasher hash2, nodes [][]byte, length uint64) *Inc
 
 // Add receives a list of new leaf nodes and update the tree accordingly
 func (tree *IncrementalMerkleTree) Add(data [][]byte) {
-	for _, d := range data {
+	for k, d := range data {
 		// Get hash of the leaf of new node
-		hash := common.Keccak256(d)
+		pos := tree.length + uint64(k)
+		hash := common.HashLR(tree.hasher, pos, d)
 		h := hash[:]
 
 		added := false // If it stays false, the tree height grew by 1
 		for i, sibling := range tree.nodes {
+			pos /= 2
 			if sibling != nil {
-				h = tree.hasher(sibling, h) // Exist, must be left sibling
-				tree.nodes[i] = nil         // Reset the node at this height
+				h = common.HashLR(tree.hasher, pos, sibling, h) // Exist, must be left sibling
+				tree.nodes[i] = nil                             // Reset the node at this height
 			} else {
 				tree.nodes[i] = h // Not exist, save the new node at this height
 				added = true
@@ -63,20 +63,19 @@ func (tree *IncrementalMerkleTree) Add(data [][]byte) {
 // The return values are the hash of the updated nodes and their indices at each level
 func (tree *IncrementalMerkleTree) SimulateAdd(data []byte) ([][]byte, []uint64, error) {
 	// Get hash of the leaf of new node
-	hash := common.Keccak256(data)
-	h := hash[:]
+	id := tree.length // Index of the adding leaf
+	h := common.HashLR(tree.hasher, id, data)
 
 	updatedNodes := [][]byte{}
 	updatedIdxs := []uint64{}
 	added := false // If it stays false, the tree height grew by 1
-	id := tree.length - 1
 	for _, sibling := range tree.nodes {
 		updatedNodes = append(updatedNodes, h)
 		updatedIdxs = append(updatedIdxs, id)
-		id = id / 2
+		id = id / 2 // Parent's index
 
 		if sibling != nil {
-			h = tree.hasher(sibling, h) // Exist, must be left sibling
+			h = common.HashLR(tree.hasher, id, sibling, h) // Exist, must be left sibling
 		} else {
 			added = true // Not exist, save the new node at this height
 			break
@@ -116,14 +115,16 @@ func (tree *IncrementalMerkleTree) GetRoot() []byte {
 
 	// Since there's still some nodes left at higher levels,
 	// this subtree must be the left subtree
-	root = tree.hasher(root, root) // Duplicate and get hash of parent
+	id := (tree.length - 1) / 2
+	root = common.HashLR(tree.hasher, id, root, root) // Duplicate and get hash of parent
 
 	// Go up the tree and calculate the root of the parent node
 	for _, sibling := range tree.nodes[k+1:] {
+		id = id / 2
 		if sibling == nil {
 			sibling = root
 		}
-		root = tree.hasher(sibling, root)
+		root = common.HashLR(tree.hasher, id, sibling, root)
 	}
 	return root
 }

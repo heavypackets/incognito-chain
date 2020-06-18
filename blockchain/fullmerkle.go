@@ -7,10 +7,10 @@ import "github.com/incognitochain/incognito-chain/common"
 // therefore we can get any nodes as well as their merkle proof
 type FullMerkleTree struct {
 	nodes  [][][]byte // [height][index][hash]
-	hasher hash2
+	hasher common.Hasher
 }
 
-func NewFullMerkleTree(hasher hash2) *FullMerkleTree {
+func NewFullMerkleTree(hasher common.Hasher) *FullMerkleTree {
 	return &FullMerkleTree{
 		nodes:  make([][][]byte, 0),
 		hasher: hasher,
