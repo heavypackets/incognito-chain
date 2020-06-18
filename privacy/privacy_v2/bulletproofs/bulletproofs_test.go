@@ -95,12 +95,12 @@ func TestEncodeVectors(t *testing.T) {
 			expectedRes.Add(expectedRes, new(operation.PointExtended).ScalarMult(H[j], b[j]))
 		}
 
-		assert.Equal(t, expectedRes, actualRes)
+		assert.Equal(t, expectedRes.ToBytes(), actualRes.ToBytes())
 	}
 }
 
 func TestInnerProductProveVerify(t *testing.T) {
-	for k := 0; k < 4; k++ {
+	for k := 0; k < 10; k++ {
 		numValue := rand.Intn(privacy_util.MaxOutputCoin)
 		numValuePad := roundUpPowTwo(numValue)
 		aggParam := new(bulletproofParams)
@@ -182,11 +182,14 @@ func TestAggregatedRangeProveVerify(t *testing.T) {
 
 		// verify the proof
 		res, err := proof2.Verify()
+		fmt.Println("Verify", res, err)
 		assert.Equal(t, true, res)
 		assert.Equal(t, nil, err)
 
 		// verify the proof faster
 		res, err = proof2.VerifyFaster()
+
+		fmt.Println("Verify faster", res, err)
 		assert.Equal(t, true, res)
 		assert.Equal(t, nil, err)
 	}

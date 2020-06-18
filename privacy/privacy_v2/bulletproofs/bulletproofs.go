@@ -1,6 +1,7 @@
 package bulletproofs
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/incognitochain/incognito-chain/privacy/operation"
@@ -410,6 +411,8 @@ func (proof AggregatedRangeProof) Verify() (bool, error) {
 	RHS.Add(RHS, new(operation.PointExtended).MultiScalarMult(expVector, cmsValue))
 
 	if !operation.IsPointExtendedEqual(LHS, RHS) {
+		fmt.Println(LHS.ToBytes())
+		fmt.Println(RHS.ToBytes())
 		Logger.Log.Errorf("verify aggregated range proof statement 1 failed")
 		return false, errors.New("verify aggregated range proof statement 1 failed")
 	}

@@ -190,3 +190,21 @@ func TestPointExtended_ScalarMultBase(t *testing.T) {
 		assert.Equal(t, resPrime.ToBytes(), res.ToBytes())
 	}
 }
+
+func TestPointExtended_MultiScalarMult(t *testing.T) {
+	for j :=0; j< 100; j++ {
+		k := 1000
+		var scalarLs  []*Scalar
+		var pointLs []*PointExtended
+		expected := new(PointExtended).Identity()
+		for i:=0;i<k ; i++{
+			scalarLs = append(scalarLs, RandomScalar())
+			pointLs = append(pointLs, new(PointExtended).ScalarMultBase(RandomScalar()))
+			expected = expected.Add(expected, new(PointExtended).ScalarMult(pointLs[i], scalarLs[i]))
+		}
+
+		actual := new(PointExtended).MultiScalarMult(scalarLs, pointLs)
+
+		assert.Equal(t, IsPointExtendedEqual(actual, expected), true)
+	}
+}
