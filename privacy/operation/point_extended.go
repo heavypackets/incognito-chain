@@ -246,8 +246,9 @@ func (p *PointExtended) AddPedersenCached(a *Scalar, APreCompute [8]C25519.Cache
 }
 
 func (p *PointExtended) Sub(pa, pb *PointExtended) *PointExtended {
-	if p.key == nil {
+	if p.key == nil || p.key.Point == nil{
 		p.key = new(C25519.KeyExtended)
+		p.key.Point = new(C25519.ExtendedGroupElement)
 	}
 	res := p.key
 	C25519.SubKeysExtended(res, pa.key, pb.key)
