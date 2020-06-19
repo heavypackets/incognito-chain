@@ -2,11 +2,10 @@ package bulletproofs
 
 import (
 	"fmt"
-	"math"
-
 	"github.com/incognitochain/incognito-chain/privacy/operation"
 	"github.com/incognitochain/incognito-chain/privacy/privacy_util"
 	"github.com/pkg/errors"
+	"math"
 )
 
 type AggregatedRangeWitness struct {
@@ -227,7 +226,7 @@ func (wit AggregatedRangeWitness) Prove() (*AggregatedRangeProof, error) {
 	// Commitment to aL, aR: A = h^alpha * G^aL * H^aR
 	// Commitment to sL, sR : S = h^rho * G^sL * H^sR
 	var alpha, rho *operation.Scalar
-	var pedGBase = new(operation.PointExtended).FromPoint(operation.PedCom.G[operation.PedersenRandomnessIndex])
+	var pedHBase = new(operation.PointExtended).FromPoint(operation.PedCom.G[operation.PedersenRandomnessIndex])
 	A, err := encodeVectors(aL, aR, aggParam.g, aggParam.h)
 	if err != nil {
 		return nil, err
@@ -238,8 +237,8 @@ func (wit AggregatedRangeWitness) Prove() (*AggregatedRangeProof, error) {
 	} else {
 		alpha = operation.RandomScalar()
 		rho = operation.RandomScalar()
-		A.Add(A, new(operation.PointExtended).ScalarMult(pedGBase, alpha))
-		S.Add(S, new(operation.PointExtended).ScalarMult(pedGBase, rho))
+		A.Add(A, new(operation.PointExtended).ScalarMult(pedHBase, alpha))
+		S.Add(S, new(operation.PointExtended).ScalarMult(pedHBase, rho))
 		proof.a = A.ToPoint()
 		proof.s = S.ToPoint()
 	}
@@ -378,7 +377,6 @@ func (proof AggregatedRangeProof) Verify() (bool, error) {
 		identity := new(operation.PointExtended).Identity()
 		cmsValue = append(cmsValue, identity)
 	}
-
 	A := new(operation.PointExtended).FromPoint(proof.a)
 	S := new(operation.PointExtended).FromPoint(proof.s)
 	T1 := new(operation.PointExtended).FromPoint(proof.t1)
@@ -470,7 +468,7 @@ func (proof AggregatedRangeProof) VerifyFaster() (bool, error) {
 	RHS := new(operation.PointExtended).ScalarMult(T2, xSquare)
 	baseG := new(operation.PointExtended).FromPoint(operation.PedCom.G[operation.PedersenValueIndex])
 	RHS.Add(RHS, new(operation.PointExtended).AddPedersen(deltaYZ, baseG, x, T1))
-	expVector := vectorMulScalar(powerVector(z, numValuePad), zSquare)
+	expVector := vectorMulScalar(powerVector(z, numValuePad), zSquare) //Why powerVector(z)?
 	RHS.Add(RHS, new(operation.PointExtended).MultiScalarMult(expVector, cmsValue))
 	if !operation.IsPointExtendedEqual(LHS, RHS) {
 		Logger.Log.Errorf("verify aggregated range proof statement 1 failed")

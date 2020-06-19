@@ -323,6 +323,29 @@ func benchmarkAggRangeProof_VerifyFaster(numberofOutput int, b *testing.B) {
 	}
 }
 
+func TestPower(t *testing.T){
+	y := operation.RandomScalar()
+
+
+	one := new(operation.Scalar).FromUint64(1)
+
+
+	start := time.Now()
+	oneVector := powerVector(one, 64)
+	yVector := powerVector(y, 64)
+	actual, _ := innerProduct(oneVector, yVector)
+	fmt.Println(time.Now().Sub(start).Seconds())
+
+	start = time.Now()
+	yPow := new(operation.Scalar).Exp(y, 64)
+	expect := new(operation.Scalar).Sub(yPow, one)
+	expect = expect.Mul(expect, new(operation.Scalar).Invert(new(operation.Scalar).Sub(y, one)))
+	fmt.Println(time.Now().Sub(start).Seconds())
+
+	assert.Equal(t, expect.ToBytes(), actual.ToBytes())
+}
+
+
 func BenchmarkVerifyBatch(b *testing.B) {
 	numBatch := 64
 	numValue := 8
@@ -388,4 +411,10 @@ func BenchmarkAggregatedRangeWitness_Prove16(b *testing.B) { benchmarkAggRangePr
 func BenchmarkAggregatedRangeProof_Verify16(b *testing.B)  { benchmarkAggRangeProof_Verify(16, b) }
 func BenchmarkAggregatedRangeProof_VerifyFaster16(b *testing.B) {
 	benchmarkAggRangeProof_VerifyFaster(16, b)
+}
+
+func BenchmarkAggregatedRangeWitness_Prove32(b *testing.B) { benchmarkAggRangeProof_Proof(32, b) }
+func BenchmarkAggregatedRangeProof_Verify32(b *testing.B)  { benchmarkAggRangeProof_Verify(32, b) }
+func BenchmarkAggregatedRangeProof_VerifyFaster32(b *testing.B) {
+	benchmarkAggRangeProof_VerifyFaster(32, b)
 }
