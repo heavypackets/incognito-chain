@@ -405,7 +405,7 @@ func (proof AggregatedRangeProof) Verify() (bool, error) {
 	LHS := new(operation.PointExtended).FromPoint(operation.PedCom.CommitAtIndex(proof.tHat, proof.tauX, operation.PedersenValueIndex))
 	RHS := new(operation.PointExtended).ScalarMult(T2, xSquare)
 	baseG := new(operation.PointExtended).FromPoint(operation.PedCom.G[operation.PedersenValueIndex])
-	RHS.Add(RHS, new(operation.PointExtended).AddPedersen(deltaYZ, baseG, x, T2))
+	RHS.Add(RHS, new(operation.PointExtended).AddPedersen(deltaYZ, baseG, x, T1))
 
 	expVector := vectorMulScalar(powerVector(z, numValuePad), zSquare)
 	RHS.Add(RHS, new(operation.PointExtended).MultiScalarMult(expVector, cmsValue))
