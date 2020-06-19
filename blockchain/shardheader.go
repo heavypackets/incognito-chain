@@ -93,5 +93,8 @@ func (shardHeader *ShardHeader) Hash() common.Hash {
 	blkMetaHash := shardHeader.MetaHash()
 	blkInstHash := shardHeader.InstructionMerkleRoot
 	combined := append(blkMetaHash[:], blkInstHash[:]...)
+	if shardHeader.Version == 2 {
+		combined = append(combined, common.Uint64ToBytes(uint64(shardHeader.ProposeTime))...)
+	}
 	return common.Keccak256(combined)
 }
