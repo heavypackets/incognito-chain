@@ -183,11 +183,24 @@ func (sc *Scalar) Exp(a *Scalar, v uint64) *Scalar {
 	if sc == nil {
 		sc = new(Scalar)
 	}
+	if v == 1{
+		return a
+	}
 
 	var res C25519.Key
-	C25519.ScMul(&res, &a.key, &a.key)
-	for i := 0; i < int(v)-2; i++ {
-		C25519.ScMul(&res, &res, &a.key)
+	var base C25519.Key
+	base.FromBytes(a.key)
+	res = C25519.Identity
+
+	for {
+		if v%2 == 1 {
+			C25519.ScMul(&res, &res, &base)
+		}
+		C25519.ScMul(&base, &base, &base)
+		v = v >> 1
+		if v == 0 {
+			break
+		}
 	}
 
 	sc.key = res
