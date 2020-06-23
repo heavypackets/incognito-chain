@@ -5,12 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/incognitochain/incognito-chain/common"
+	"github.com/incognitochain/incognito-chain/common/base58"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
+	"github.com/incognitochain/incognito-chain/privacy/coin"
+	"github.com/incognitochain/incognito-chain/wallet"
 	"reflect"
 	"strconv"
-
-	"github.com/incognitochain/incognito-chain/common"
-	"github.com/incognitochain/incognito-chain/wallet"
 )
 
 // PDETradeRequest - privacy dex trade
@@ -21,6 +22,7 @@ type PDETradeRequest struct {
 	MinAcceptableAmount uint64
 	TradingFee          uint64
 	TraderAddressStr    string
+	TxRandomStr         string
 	MetadataBase
 }
 
@@ -37,6 +39,7 @@ type TokenPoolValueOperation struct {
 
 type PDETradeAcceptedContent struct {
 	TraderAddressStr         string
+	TxRandomStr              string
 	TokenIDToBuyStr          string
 	ReceiveAmount            uint64
 	Token1IDStr              string
@@ -54,6 +57,7 @@ func NewPDETradeRequest(
 	minAcceptableAmount uint64,
 	tradingFee uint64,
 	traderAddressStr string,
+	txRandomStr string,
 	metaType int,
 ) (*PDETradeRequest, error) {
 	metadataBase := MetadataBase{
@@ -66,6 +70,7 @@ func NewPDETradeRequest(
 		MinAcceptableAmount: minAcceptableAmount,
 		TradingFee:          tradingFee,
 		TraderAddressStr:    traderAddressStr,
+		TxRandomStr:         txRandomStr,
 	}
 	pdeTradeRequest.MetadataBase = metadataBase
 	return pdeTradeRequest, nil
@@ -87,31 +92,34 @@ func (pc PDETradeRequest) ValidateSanityData(chainRetriever ChainRetriever, shar
 		return false, false, NewMetadataTxError(IssuingRequestNewIssuingRequestFromMapEror, errors.New("TraderAddressStr incorrect"))
 	}
 	traderAddr := keyWallet.KeySet.PaymentAddress
-
 	if len(traderAddr.Pk) == 0 {
 		return false, false, errors.New("Wrong request info's trader address")
 	}
-	if !tx.IsCoinsBurning(chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight) {
-		return false, false, errors.New("Must send coin to burning address")
+	txRandomB, err := base58.Decode(pc.TxRandomStr)
+	if err != nil {
+		return false, false, errors.New("Wrong request info's txRandom - Cannot decode base58 string")
 	}
-	if (pc.SellAmount + pc.TradingFee) != tx.CalculateTxValue() {
-		return false, false, errors.New("Total of selling amount and trading fee should be equal to the tx value")
-	}
-	if !bytes.Equal(tx.GetSigPubKey()[:], traderAddr.Pk[:]) {
-		return false, false, errors.New("TraderAddress incorrect")
+	txRandom := new(coin.TxRandom)
+	if err := txRandom.SetBytes(txRandomB); err != nil {
+		return false, false, errors.New("Wrong request info's txRandom - Cannot set txRandom from bytes")
 	}
 
-	_, err = common.Hash{}.NewHashFromStr(pc.TokenIDToBuyStr)
+	isBurned, burnCoin, burnedTokenID, err := tx.GetTxBurnData()
 	if err != nil {
-		return false, false, NewMetadataTxError(IssuingRequestNewIssuingRequestFromMapEror, errors.New("TokenIDToBuyStr incorrect"))
+		return false, false, err
+	}
+	if !isBurned {
+		return false, false, errors.New("Error This is not Tx Burn")
+	}
+	if pc.SellAmount != burnCoin.GetValue() {
+		return false, false, errors.New("Error Selling amount should be equal to the burned amount")
 	}
 
 	tokenIDToSell, err := common.Hash{}.NewHashFromStr(pc.TokenIDToSellStr)
 	if err != nil {
 		return false, false, NewMetadataTxError(IssuingRequestNewIssuingRequestFromMapEror, errors.New("TokenIDToSellStr incorrect"))
 	}
-
-	if !bytes.Equal(tx.GetTokenID()[:], tokenIDToSell[:]) {
+	if !bytes.Equal(burnedTokenID[:], tokenIDToSell[:]) {
 		return false, false, errors.New("Wrong request info's token id, it should be equal to tx's token id.")
 	}
 
@@ -135,6 +143,9 @@ func (pc PDETradeRequest) Hash() *common.Hash {
 	record += pc.TokenIDToBuyStr
 	record += pc.TokenIDToSellStr
 	record += pc.TraderAddressStr
+	if len(pc.TxRandomStr) > 0 {
+		record += pc.TxRandomStr
+	}
 	record += strconv.FormatUint(pc.SellAmount, 10)
 	record += strconv.FormatUint(pc.MinAcceptableAmount, 10)
 	record += strconv.FormatUint(pc.TradingFee, 10)

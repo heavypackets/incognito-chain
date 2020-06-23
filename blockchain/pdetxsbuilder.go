@@ -3,7 +3,11 @@ package blockchain
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"github.com/incognitochain/incognito-chain/common/base58"
+
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
+	"github.com/incognitochain/incognito-chain/privacy/coin"
 
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/metadata"
@@ -26,6 +30,11 @@ func parseTradeRefundContent(
 		Logger.log.Errorf("ERROR: an error occured while unmarshaling pde trade refund content: %+v", err)
 		return nil, err
 	}
+	fmt.Println("Trade Request TxRandom ", pdeTradeRequestAction.Meta.TxRandomStr)
+	fmt.Println("Trade Request TradeAddress ", pdeTradeRequestAction.Meta.TraderAddressStr)
+	fmt.Println("Trade Request TradeAmount ", pdeTradeRequestAction.Meta.MinAcceptableAmount)
+	fmt.Println("Trade Request Request Tx ", pdeTradeRequestAction.TxReqID)
+
 	return &pdeTradeRequestAction, nil
 }
 
@@ -39,12 +48,17 @@ func parseTradeAcceptedContent(
 		Logger.log.Errorf("ERROR: an error occured while unmarshaling pde trade accepted content: %+v", err)
 		return nil, err
 	}
+	fmt.Println("Trade Request TxRandom ", pdeTradeAcceptedContent.TxRandomStr)
+	fmt.Println("Trade Request TradeAddress ", pdeTradeAcceptedContent.TraderAddressStr)
+	fmt.Println("Trade Request TradeAmount ", pdeTradeAcceptedContent.ReceiveAmount)
+	fmt.Println("Trade Request RequestID ", pdeTradeAcceptedContent.ReceiveAmount)
 	return &pdeTradeAcceptedContent, nil
 }
 
 func buildTradeResTx(
 	instStatus string,
 	receiverAddressStr string,
+	txRandomStr string,
 	receiveAmt uint64,
 	tokenIDStr string,
 	requestedTxID common.Hash,
@@ -69,12 +83,37 @@ func buildTradeResTx(
 		return nil, err
 	}
 	receiverAddr := keyWallet.KeySet.PaymentAddress
+
+	var otaCoin *privacy.CoinV2
+	if len(txRandomStr) > 0 {
+		txRandomB, err := base58.Decode(txRandomStr)
+		if err != nil {
+			Logger.log.Errorf("Wrong request info's txRandom - Cannot decode base58 string: %+v", err)
+			return nil, err
+		}
+		txRandom := new(coin.TxRandom)
+		if err := txRandom.SetBytes(txRandomB); err != nil {
+			Logger.log.Errorf("Wrong request info's txRandom - Cannot set txRandom from bytes: %+v", err)
+			return nil, err
+		}
+		otaCoin, err = coin.NewCoinFromAmountAndTxRandomBytes(receiveAmt, receiverAddr, txRandom, []byte{})
+		if err != nil {
+			Logger.log.Errorf("Cannot get new coin from amount and ota address")
+			return nil, err
+		}
+	} else {
+		otaCoin, err = coin.NewCoinFromAmountAndReceiver(receiveAmt, receiverAddr)
+		if err != nil {
+			Logger.log.Errorf("Cannot get new coin from amount and payment address")
+			return nil, err
+		}
+	}
+
 	// the returned currency is PRV
 	if tokenIDStr == common.PRVCoinID.String() {
-		resTx := new(transaction.Tx)
+		resTx := new(transaction.TxVersion2)
 		err = resTx.InitTxSalary(
-			receiveAmt,
-			&receiverAddr,
+			otaCoin,
 			producerPrivateKey,
 			transactionStateDB,
 			meta,
@@ -85,43 +124,15 @@ func buildTradeResTx(
 		return resTx, nil
 	}
 	// in case the returned currency is privacy custom token
-	receiver := &privacy.PaymentInfo{
-		Amount:         receiveAmt,
-		PaymentAddress: receiverAddr,
-	}
 	var propertyID [common.HashSize]byte
 	copy(propertyID[:], tokenID[:])
 	propID := common.Hash(propertyID)
-	tokenParams := &transaction.CustomTokenPrivacyParamTx{
-		PropertyID: propID.String(),
-		// PropertyName:   issuingAcceptedInst.IncTokenName,
-		// PropertySymbol: issuingAcceptedInst.IncTokenName,
-		Amount:      receiveAmt,
-		TokenTxType: transaction.CustomTokenInit,
-		Receiver:    []*privacy.PaymentInfo{receiver},
-		TokenInput:  []*privacy.InputCoin{},
-		Mintable:    true,
-	}
-	resTx := &transaction.TxCustomTokenPrivacy{}
-	initErr := resTx.Init(
-		transaction.NewTxPrivacyTokenInitParams(
-			producerPrivateKey,
-			[]*privacy.PaymentInfo{},
-			nil,
-			0,
-			tokenParams,
-			transactionStateDB,
-			meta,
-			false,
-			false,
-			shardID,
-			nil,
-			bridgeStateDB,
-		),
-	)
-	if initErr != nil {
-		Logger.log.Errorf("ERROR: an error occured while initializing trade response tx: %+v", initErr)
-		return nil, initErr
+
+	resTx := &transaction.TxTokenVersion2{}
+	err = resTx.InitTxTokenSalary(otaCoin, producerPrivateKey, transactionStateDB, meta, &propID, "")
+	if err != nil {
+		Logger.log.Errorf("ERROR: an error occured while initializing trade response tx: %+v", err)
+		return nil, err
 	}
 	return resTx, nil
 }
@@ -141,9 +152,11 @@ func (blockGenerator *BlockGenerator) buildPDETradeRefundTx(
 	if shardID != pdeTradeRequestAction.ShardID {
 		return nil, nil
 	}
+
 	resTx, err := buildTradeResTx(
 		instStatus,
 		pdeTradeRequestAction.Meta.TraderAddressStr,
+		pdeTradeRequestAction.Meta.TxRandomStr,
 		pdeTradeRequestAction.Meta.SellAmount+pdeTradeRequestAction.Meta.TradingFee,
 		pdeTradeRequestAction.Meta.TokenIDToSellStr,
 		pdeTradeRequestAction.TxReqID,
@@ -178,6 +191,7 @@ func (blockGenerator *BlockGenerator) buildPDETradeAcceptedTx(
 	resTx, err := buildTradeResTx(
 		instStatus,
 		pdeTradeAcceptedContent.TraderAddressStr,
+		pdeTradeAcceptedContent.TxRandomStr,
 		pdeTradeAcceptedContent.ReceiveAmount,
 		pdeTradeAcceptedContent.TokenIDToBuyStr,
 		pdeTradeAcceptedContent.RequestedTxID,
@@ -259,12 +273,17 @@ func (blockGenerator *BlockGenerator) buildPDEWithdrawalTx(
 		return nil, nil
 	}
 	receiverAddr := keyWallet.KeySet.PaymentAddress
+	otaCoin, err := coin.NewCoinFromAmountAndReceiver(wdAcceptedContent.DeductingPoolValue, receiverAddr)
+	if err != nil {
+		Logger.log.Errorf("Cannot get new coin from amount and payment address")
+		return nil, err
+	}
+
 	// the returned currency is PRV
 	if withdrawalTokenIDStr == common.PRVCoinID.String() {
-		resTx := new(transaction.Tx)
+		resTx := new(transaction.TxVersion2)
 		err = resTx.InitTxSalary(
-			wdAcceptedContent.DeductingPoolValue,
-			&receiverAddr,
+			otaCoin,
 			producerPrivateKey,
 			shardView.GetCopiedTransactionStateDB(),
 			meta,
@@ -278,42 +297,13 @@ func (blockGenerator *BlockGenerator) buildPDEWithdrawalTx(
 		return resTx, nil
 	}
 	// in case the returned currency is privacy custom token
-	receiver := &privacy.PaymentInfo{
-		Amount:         wdAcceptedContent.DeductingPoolValue,
-		PaymentAddress: receiverAddr,
-	}
 	var propertyID [common.HashSize]byte
 	copy(propertyID[:], tokenID[:])
 	propID := common.Hash(propertyID)
-	tokenParams := &transaction.CustomTokenPrivacyParamTx{
-		PropertyID: propID.String(),
-		// PropertyName:   tokeName,
-		// PropertySymbol: tokenSymbol,
-		Amount:      wdAcceptedContent.DeductingPoolValue,
-		TokenTxType: transaction.CustomTokenInit,
-		Receiver:    []*privacy.PaymentInfo{receiver},
-		TokenInput:  []*privacy.InputCoin{},
-		Mintable:    true,
-	}
-	resTx := &transaction.TxCustomTokenPrivacy{}
-	initErr := resTx.Init(
-		transaction.NewTxPrivacyTokenInitParams(
-			producerPrivateKey,
-			[]*privacy.PaymentInfo{},
-			nil,
-			0,
-			tokenParams,
-			shardView.GetCopiedTransactionStateDB(),
-			meta,
-			false,
-			false,
-			shardID,
-			nil,
-			beaconView.GetBeaconFeatureStateDB(),
-		),
-	)
-	if initErr != nil {
-		Logger.log.Errorf("ERROR: an error occured while initializing withdrawal response (privacy custom token) tx: %+v", initErr)
+	resTx := &transaction.TxTokenVersion2{}
+	err = resTx.InitTxTokenSalary(otaCoin, producerPrivateKey, shardView.GetCopiedFeatureStateDB(), meta, &propID, "")
+	if err != nil {
+		Logger.log.Errorf("ERROR: an error occured while initializing withdrawal response (privacy custom token) tx: %+v", err)
 		return nil, nil
 	}
 	return resTx, nil
@@ -358,10 +348,14 @@ func (blockGenerator *BlockGenerator) buildPDERefundContributionTx(
 	receiverAddr := keyWallet.KeySet.PaymentAddress
 	// the returned currency is PRV
 	if refundTokenIDStr == common.PRVCoinID.String() {
-		resTx := new(transaction.Tx)
+		resTx := new(transaction.TxVersion2)
+		otaCoin, err := coin.NewCoinFromAmountAndReceiver(refundContribution.ContributedAmount, receiverAddr)
+		if err != nil {
+			Logger.log.Errorf("Cannot get new coin from amount and receiver")
+			return nil, err
+		}
 		err = resTx.InitTxSalary(
-			refundContribution.ContributedAmount,
-			&receiverAddr,
+			otaCoin,
 			producerPrivateKey,
 			shardView.GetCopiedTransactionStateDB(),
 			meta,
@@ -390,26 +384,22 @@ func (blockGenerator *BlockGenerator) buildPDERefundContributionTx(
 		Amount:      refundContribution.ContributedAmount,
 		TokenTxType: transaction.CustomTokenInit,
 		Receiver:    []*privacy.PaymentInfo{receiver},
-		TokenInput:  []*privacy.InputCoin{},
+		TokenInput:  []coin.PlainCoin{},
 		Mintable:    true,
 	}
-	resTx := &transaction.TxCustomTokenPrivacy{}
-	initErr := resTx.Init(
-		transaction.NewTxPrivacyTokenInitParams(
-			producerPrivateKey,
-			[]*privacy.PaymentInfo{},
-			nil,
-			0,
-			tokenParams,
-			shardView.GetCopiedTransactionStateDB(),
-			meta,
-			false,
-			false,
-			shardID,
-			nil,
-			beaconView.GetBeaconFeatureStateDB(),
-		),
+	txTokenParams := transaction.NewTxPrivacyTokenInitParams(
+		producerPrivateKey, []*privacy.PaymentInfo{},
+		nil, 0, tokenParams,
+		shardView.GetCopiedTransactionStateDB(), meta,
+		false, false, shardID,
+		nil, beaconView.GetBeaconFeatureStateDB(),
 	)
+	resTx, err := transaction.NewTransactionTokenFromParams(txTokenParams)
+	if err != nil {
+		Logger.log.Errorf("Cannot new transaction token from params, err %v", err)
+		return nil, err
+	}
+	initErr := resTx.Init(txTokenParams)
 	if initErr != nil {
 		Logger.log.Errorf("ERROR: an error occured while initializing refund contribution response (privacy custom token) tx: %+v", initErr)
 		return nil, nil
@@ -459,10 +449,14 @@ func (blockGenerator *BlockGenerator) buildPDEMatchedNReturnedContributionTx(
 	receiverAddr := keyWallet.KeySet.PaymentAddress
 	// the returned currency is PRV
 	if tokenIDStr == common.PRVCoinID.String() {
-		resTx := new(transaction.Tx)
+		resTx := new(transaction.TxVersion2)
+		otaCoin, err := coin.NewCoinFromAmountAndReceiver(matchedNReturnedContribution.ReturnedContributedAmount, receiverAddr)
+		if err != nil {
+			Logger.log.Errorf("Cannot get new coin from amount and receiver")
+			return nil, err
+		}
 		err = resTx.InitTxSalary(
-			matchedNReturnedContribution.ReturnedContributedAmount,
-			&receiverAddr,
+			otaCoin,
 			producerPrivateKey,
 			shardView.GetCopiedTransactionStateDB(),
 			meta,
@@ -489,27 +483,22 @@ func (blockGenerator *BlockGenerator) buildPDEMatchedNReturnedContributionTx(
 		Amount:      matchedNReturnedContribution.ReturnedContributedAmount,
 		TokenTxType: transaction.CustomTokenInit,
 		Receiver:    []*privacy.PaymentInfo{receiver},
-		TokenInput:  []*privacy.InputCoin{},
+		TokenInput:  []coin.PlainCoin{},
 		Mintable:    true,
 	}
-	resTx := &transaction.TxCustomTokenPrivacy{}
-	initErr := resTx.Init(
-		transaction.NewTxPrivacyTokenInitParams(
-			producerPrivateKey,
-			[]*privacy.PaymentInfo{},
-			nil,
-			0,
-			tokenParams,
-			shardView.GetCopiedTransactionStateDB(),
-			meta,
-			false,
-			false,
-			shardID,
-			nil,
-			beaconView.GetBeaconFeatureStateDB(),
-		),
+	txTokenParams := transaction.NewTxPrivacyTokenInitParams(
+		producerPrivateKey, []*privacy.PaymentInfo{},
+		nil, 0, tokenParams,
+		shardView.GetCopiedTransactionStateDB(), meta,
+		false, false,
+		shardID, nil, beaconView.GetBeaconFeatureStateDB(),
 	)
-	if initErr != nil {
+	resTx, err := transaction.NewTransactionTokenFromParams(txTokenParams)
+	if err != nil {
+		Logger.log.Errorf("Cannot new transaction token from params, err %v", err)
+		return nil, err
+	}
+	if initErr := resTx.Init(txTokenParams); initErr != nil {
 		Logger.log.Errorf("ERROR: an error occured while initializing matched and returned contribution response (privacy custom token) tx: %+v", initErr)
 		return nil, nil
 	}

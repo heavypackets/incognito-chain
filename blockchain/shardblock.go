@@ -6,10 +6,10 @@ import (
 	"fmt"
 
 	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
+	"github.com/incognitochain/incognito-chain/privacy/coin"
 
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/metadata"
-	"github.com/incognitochain/incognito-chain/privacy"
 )
 
 type ShardBlock struct {
@@ -61,7 +61,7 @@ type CrossShardBlock struct {
 	ToShardID       byte
 	MerklePathShard []common.Hash
 	// Cross Shard data for PRV
-	CrossOutputCoin []privacy.OutputCoin
+	CrossOutputCoin []coin.Coin
 	// Cross Shard For Custom token privacy
 	CrossTxTokenPrivacyData []ContentCrossShardTokenPrivacyData
 }
@@ -103,6 +103,32 @@ func (shardBlock *ShardBlock) BuildShardBlockBody(instructions [][]string, cross
 	shardBlock.Body.Instructions = append(shardBlock.Body.Instructions, instructions...)
 	shardBlock.Body.CrossTransactions = crossTransaction
 	shardBlock.Body.Transactions = append(shardBlock.Body.Transactions, transactions...)
+}
+
+func (crossShardBlock *CrossShardBlock) UnmarshalJSON(data []byte) error {
+	type Alias CrossShardBlock
+	temp := &struct {
+		CrossOutputCoin []string
+		*Alias
+	}{
+		Alias: (*Alias)(crossShardBlock),
+	}
+
+	if err := json.Unmarshal(data, temp); err != nil {
+		Logger.log.Error("UnmarshalJSON crossShardBlock", string(data))
+		return err
+	}
+
+	outputCoinList, err := coin.ParseCoinsStr(temp.CrossOutputCoin)
+	if err != nil {
+		Logger.log.Error("UnmarshalJSON Cannot parse crossOutputCoins", err)
+		return err
+	}
+	for i := 0; i < len(temp.CrossOutputCoin); i++ {
+		fmt.Println("Detail of CrossOutputCoins", outputCoinList[i])
+	}
+	crossShardBlock.CrossOutputCoin = outputCoinList
+	return nil
 }
 
 func (crossShardBlock CrossShardBlock) GetProposer() string {

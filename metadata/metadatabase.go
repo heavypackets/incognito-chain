@@ -11,10 +11,17 @@ import (
 
 type MetadataBase struct {
 	Type int
+	Sig  []byte
 }
 
+func (mb *MetadataBase) SetSig(sig []byte) { mb.Sig = sig }
+
+func (mb MetadataBase) GetSig() []byte { return mb.Sig }
+
+func (mb *MetadataBase) ShouldSignMetaData() bool { return false }
+
 func NewMetadataBase(thisType int) *MetadataBase {
-	return &MetadataBase{Type: thisType}
+	return &MetadataBase{Type: thisType, Sig: []byte{}}
 }
 
 func (mb MetadataBase) IsMinerCreatedMetaType() bool {
@@ -48,6 +55,10 @@ func (mb MetadataBase) Hash() *common.Hash {
 	data := []byte(record)
 	hash := common.HashH(data)
 	return &hash
+}
+
+func (mb MetadataBase) HashWithoutSig() *common.Hash {
+	return mb.Hash()
 }
 
 func (mb MetadataBase) CheckTransactionFee(tx Transaction, minFeePerKbTx uint64, beaconHeight int64, stateDB *statedb.StateDB) bool {
@@ -86,6 +97,6 @@ func (mb *MetadataBase) BuildReqActions(tx Transaction, chainRetriever ChainRetr
 	return [][]string{}, nil
 }
 
-func (mb MetadataBase) VerifyMinerCreatedTxBeforeGettingInBlock(txsInBlock []Transaction, txsUsed []int, insts [][]string, instUsed []int, shardID byte, tx Transaction, chainRetriever ChainRetriever, ac *AccumulatedValues, shardViewRetriever ShardViewRetriever, beaconViewRetriever BeaconViewRetriever) (bool, error) {
+func (mb MetadataBase) VerifyMinerCreatedTxBeforeGettingInBlock(mintData *MintData, shardID byte, tx Transaction, chainRetriever ChainRetriever, ac *AccumulatedValues, shardViewRetriever ShardViewRetriever, beaconViewRetriever BeaconViewRetriever) (bool, error) {
 	return true, nil
 }

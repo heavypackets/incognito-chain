@@ -137,6 +137,7 @@ const (
 	VerifyCrossShardBlockShardTxRootError
 	WalletKeySerializedError
 	InitSalaryTransactionError
+	GetAndCheckBurnError
 	RemoveOldDataAfterProcessingError
 	WrongMetadataTypeError
 	StakeInstructionError
@@ -166,7 +167,8 @@ const (
 	ProcessPDEInstructionError
 	ProcessPortalInstructionError
 	InitBeaconStateError
-	GetListOutputCoinsByKeysetError
+	GetListDecryptedOutputCoinsByKeysetError
+	GetListDecryptedOutputCoinsV1ByKeysetError
 	ProcessSalaryInstructionsError
 	GetShardIDFromTxError
 	GetValueFromTxError
@@ -180,6 +182,7 @@ const (
 	InsertShardBlockError
 	GetShardBlockHeightByHashError
 	GetShardBlockByHashError
+	GetListOutputCoinsByKeysetError
 )
 
 var ErrCodeMessage = map[int]struct {
@@ -345,6 +348,9 @@ var ErrCodeMessage = map[int]struct {
 	GetShardBlockByHashError:                          {-1156, "Get Shard Block By Hash Error"},
 	GetListOutputCoinsByKeysetError:                   {-2000, "Get List Output Coins By Keyset Error"},
 	GetTotalLockedCollateralError:                     {-3000, "Get Total Locked Collateral Error"},
+	GetListDecryptedOutputCoinsByKeysetError:          {-2100, "Get List Output Coins By Keyset Error"},
+	GetListDecryptedOutputCoinsV1ByKeysetError:        {-2101, "Get List Output Coins Ver 1 By Ketset Error"},
+	GetAndCheckBurnError:                              {-2102, "Get and Check Burn Receiver Error"},
 }
 
 type BlockChainError struct {

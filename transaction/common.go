@@ -1,48 +1,42 @@
 package transaction
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/incognitochain/incognito-chain/privacy/operation"
+	"github.com/incognitochain/incognito-chain/privacy/privacy_v1/schnorr"
+	"github.com/incognitochain/incognito-chain/wallet"
 	"math"
 	"math/big"
 	"math/rand"
+	"strconv"
 
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/common/base58"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"github.com/incognitochain/incognito-chain/metadata"
 	"github.com/incognitochain/incognito-chain/privacy"
-	"github.com/incognitochain/incognito-chain/privacy/zeroknowledge/utils"
+	"github.com/incognitochain/incognito-chain/privacy/coin"
+	"github.com/incognitochain/incognito-chain/privacy/privacy_v1/zeroknowledge/utils"
 )
 
-// ConvertOutputCoinToInputCoin - convert output coin from old tx to input coin for new tx
-func ConvertOutputCoinToInputCoin(usableOutputsOfOld []*privacy.OutputCoin) []*privacy.InputCoin {
-	var inputCoins []*privacy.InputCoin
-
-	for _, coin := range usableOutputsOfOld {
-		inCoin := new(privacy.InputCoin)
-		inCoin.CoinDetails = coin.CoinDetails
-		inputCoins = append(inputCoins, inCoin)
-	}
-	return inputCoins
-}
-
 type RandomCommitmentsProcessParam struct {
-	usableInputCoins []*privacy.InputCoin
+	usableInputCoins []coin.PlainCoin
 	randNum          int
 	stateDB          *statedb.StateDB
 	shardID          byte
 	tokenID          *common.Hash
 }
 
-func NewRandomCommitmentsProcessParam(usableInputCoins []*privacy.InputCoin, randNum int, stateDB *statedb.StateDB, shardID byte, tokenID *common.Hash) *RandomCommitmentsProcessParam {
-	result := &RandomCommitmentsProcessParam{
+func NewRandomCommitmentsProcessParam(usableInputCoins []coin.PlainCoin, randNum int, stateDB *statedb.StateDB, shardID byte, tokenID *common.Hash) *RandomCommitmentsProcessParam {
+	return &RandomCommitmentsProcessParam{
 		tokenID:          tokenID,
 		shardID:          shardID,
 		stateDB:          stateDB,
 		randNum:          randNum,
 		usableInputCoins: usableInputCoins,
 	}
-	return result
 }
 
 // RandomCommitmentsProcess - process list commitments and useable tx to create
@@ -51,9 +45,6 @@ func NewRandomCommitmentsProcessParam(usableInputCoins []*privacy.InputCoin, ran
 // commitmentIndexs = [{1,2,3,4,myindex1,6,7,8}{9,10,11,12,13,myindex2,15,16}...]
 // myCommitmentIndexs = [4, 13, ...]
 func RandomCommitmentsProcess(param *RandomCommitmentsProcessParam) (commitmentIndexs []uint64, myCommitmentIndexs []uint64, commitments [][]byte) {
-	commitmentIndexs = []uint64{} // : list commitment indexes which: random from full db commitments + commitments of usableInputCoins
-	commitments = [][]byte{}
-	myCommitmentIndexs = []uint64{} // : list indexes of commitments(usableInputCoins) in {commitmentIndexs}
 	if len(param.usableInputCoins) == 0 {
 		return
 	}
@@ -66,13 +57,13 @@ func RandomCommitmentsProcess(param *RandomCommitmentsProcessParam) (commitmentI
 	// tick index of each usable commitment with full db commitments
 	mapIndexCommitmentsInUsableTx := make(map[string]*big.Int)
 	for i, in := range param.usableInputCoins {
-		usableCommitment := in.CoinDetails.GetCoinCommitment().ToBytesS()
+		usableCommitment := in.GetCommitment().ToBytesS()
 		commitmentInHash := common.HashH(usableCommitment)
 		listUsableCommitments[commitmentInHash] = usableCommitment
 		listUsableCommitmentsIndices[i] = commitmentInHash
-		index, err := statedb.GetCommitmentIndex(param.stateDB, *param.tokenID, usableCommitment, param.shardID)
+		index, err := txDatabaseWrapper.getCommitmentIndex(param.stateDB, *param.tokenID, usableCommitment, param.shardID)
 		if err != nil {
-			Logger.log.Error(err)
+			Logger.Log.Error(err)
 			return
 		}
 		commitmentInBase58Check := base58.Base58Check{}.Encode(usableCommitment, common.ZeroByte)
@@ -81,27 +72,27 @@ func RandomCommitmentsProcess(param *RandomCommitmentsProcessParam) (commitmentI
 	// loop to random commitmentIndexs
 	cpRandNum := (len(listUsableCommitments) * param.randNum) - len(listUsableCommitments)
 	//fmt.Printf("cpRandNum: %d\n", cpRandNum)
-	lenCommitment, err1 := statedb.GetCommitmentLength(param.stateDB, *param.tokenID, param.shardID)
+	lenCommitment, err1 := txDatabaseWrapper.getCommitmentLength(param.stateDB, *param.tokenID, param.shardID)
 	if err1 != nil {
-		Logger.log.Error(err1)
+		Logger.Log.Error(err1)
 		return
 	}
 	if lenCommitment == nil {
-		Logger.log.Error(errors.New("Commitments is empty"))
+		Logger.Log.Error(errors.New("Commitments is empty"))
 		return
 	}
 	if lenCommitment.Uint64() == 1 && len(param.usableInputCoins) == 1 {
 		commitmentIndexs = []uint64{0, 0, 0, 0, 0, 0, 0}
-		temp := param.usableInputCoins[0].CoinDetails.GetCoinCommitment().ToBytesS()
+		temp := param.usableInputCoins[0].GetCommitment().ToBytesS()
 		commitments = [][]byte{temp, temp, temp, temp, temp, temp, temp}
 	} else {
 		for i := 0; i < cpRandNum; i++ {
 			for {
-				lenCommitment, _ = statedb.GetCommitmentLength(param.stateDB, *param.tokenID, param.shardID)
+				lenCommitment, _ = txDatabaseWrapper.getCommitmentLength(param.stateDB, *param.tokenID, param.shardID)
 				index, _ := common.RandBigIntMaxRange(lenCommitment)
-				ok, err := statedb.HasCommitmentIndex(param.stateDB, *param.tokenID, index.Uint64(), param.shardID)
+				ok, err := txDatabaseWrapper.hasCommitmentIndex(param.stateDB, *param.tokenID, index.Uint64(), param.shardID)
 				if ok && err == nil {
-					temp, _ := statedb.GetCommitmentByIndex(param.stateDB, *param.tokenID, index.Uint64(), param.shardID)
+					temp, _ := txDatabaseWrapper.getCommitmentByIndex(param.stateDB, *param.tokenID, index.Uint64(), param.shardID)
 					if _, found := listUsableCommitments[common.HashH(temp)]; !found {
 						// random commitment not in commitments of usableinputcoin
 						commitmentIndexs = append(commitmentIndexs, index.Uint64())
@@ -127,15 +118,6 @@ func RandomCommitmentsProcess(param *RandomCommitmentsProcessParam) (commitmentI
 		j++
 	}
 	return commitmentIndexs, myCommitmentIndexs, commitments
-}
-
-// CheckSNDerivatorExistence return true if snd exists in snDerivators list
-func CheckSNDerivatorExistence(tokenID *common.Hash, snd *privacy.Scalar, stateDB *statedb.StateDB) (bool, error) {
-	ok, err := statedb.HasSNDerivator(stateDB, *tokenID, snd.ToBytesS())
-	if err != nil {
-		return false, err
-	}
-	return ok, nil
 }
 
 type EstimateTxSizeParam struct {
@@ -164,12 +146,10 @@ func NewEstimateTxSizeParam(numInputCoins, numPayments int,
 
 // EstimateTxSize returns the estimated size of the tx in kilobyte
 func EstimateTxSize(estimateTxSizeParam *EstimateTxSizeParam) uint64 {
-
 	sizeVersion := uint64(1)  // int8
 	sizeType := uint64(5)     // string, max : 5
 	sizeLockTime := uint64(8) // int64
 	sizeFee := uint64(8)      // uint64
-
 	sizeInfo := uint64(512)
 
 	sizeSigPubKey := uint64(common.SigPubKeySize)
@@ -231,10 +211,11 @@ func EstimateTxSize(estimateTxSizeParam *EstimateTxSizeParam) uint64 {
 type BuildCoinBaseTxByCoinIDParams struct {
 	payToAddress       *privacy.PaymentAddress
 	amount             uint64
+	txRandom           *coin.TxRandom
 	payByPrivateKey    *privacy.PrivateKey
 	transactionStateDB *statedb.StateDB
 	bridgeStateDB      *statedb.StateDB
-	meta               metadata.Metadata
+	meta               *metadata.WithDrawRewardResponse
 	coinID             common.Hash
 	txType             int
 	coinName           string
@@ -245,7 +226,7 @@ func NewBuildCoinBaseTxByCoinIDParams(payToAddress *privacy.PaymentAddress,
 	amount uint64,
 	payByPrivateKey *privacy.PrivateKey,
 	stateDB *statedb.StateDB,
-	meta metadata.Metadata,
+	meta *metadata.WithDrawRewardResponse,
 	coinID common.Hash,
 	txType int,
 	coinName string,
@@ -266,48 +247,222 @@ func NewBuildCoinBaseTxByCoinIDParams(payToAddress *privacy.PaymentAddress,
 	return params
 }
 
+func calculateSumOutputsWithFee(outputCoins []coin.Coin, fee uint64) *operation.Point {
+	sumOutputsWithFee := new(operation.Point).Identity()
+	for i := 0; i < len(outputCoins); i += 1 {
+		sumOutputsWithFee.Add(sumOutputsWithFee, outputCoins[i].GetCommitment())
+	}
+	feeCommitment := new(operation.Point).ScalarMult(
+		operation.PedCom.G[operation.PedersenValueIndex],
+		new(operation.Scalar).FromUint64(fee),
+	)
+	sumOutputsWithFee.Add(sumOutputsWithFee, feeCommitment)
+	return sumOutputsWithFee
+}
+
+func newCoinUniqueOTABasedOnPaymentInfo(paymentInfo *privacy.PaymentInfo, tokenID *common.Hash, stateDB *statedb.StateDB) (*coin.CoinV2, error) {
+	for {
+		c, err := coin.NewCoinFromPaymentInfo(paymentInfo)
+		if err != nil {
+			Logger.Log.Errorf("Cannot parse coin based on payment info err: %v", err)
+			return nil, err
+		}
+		// If previously created coin is burning address
+		if wallet.IsPublicKeyBurningAddress(c.GetPublicKey().ToBytesS()) {
+			return c, nil // No need to check db
+		}
+		// Onetimeaddress should be unique
+		publicKeyBytes := c.GetPublicKey().ToBytesS()
+		found, err := txDatabaseWrapper.hasOnetimeAddress(stateDB, *tokenID, publicKeyBytes)
+		if err != nil {
+			Logger.Log.Errorf("Cannot check public key existence in DB, err %v", err)
+			return nil, err
+		}
+		if !found {
+			return c, nil
+		}
+	}
+}
+
+func newCoinV2ArrayFromPaymentInfoArray(paymentInfo []*privacy.PaymentInfo, tokenID *common.Hash, stateDB *statedb.StateDB) ([]*coin.CoinV2, error) {
+	outputCoins := make([]*coin.CoinV2, len(paymentInfo))
+	for index, info := range paymentInfo {
+		var err error
+		outputCoins[index], err = newCoinUniqueOTABasedOnPaymentInfo(info, tokenID, stateDB)
+		if err != nil {
+			Logger.Log.Errorf("Cannot create coin with unique OTA, error: %v", err)
+			return nil, err
+		}
+	}
+	return outputCoins, nil
+}
+
 func BuildCoinBaseTxByCoinID(params *BuildCoinBaseTxByCoinIDParams) (metadata.Transaction, error) {
+	otaCoin, err := coin.NewCoinFromAmountAndReceiver(params.amount, *params.payToAddress)
+	params.meta.SetSharedRandom(otaCoin.GetSharedRandom().ToBytesS())
+
+	if err != nil {
+		Logger.Log.Errorf("Cannot get new coin from amount and receiver")
+		return nil, err
+	}
 	switch params.txType {
 	case NormalCoinType:
-		tx := &Tx{}
-		err := tx.InitTxSalary(params.amount, params.payToAddress, params.payByPrivateKey, params.transactionStateDB, params.meta)
+		tx := new(TxVersion2)
+		err = tx.InitTxSalary(otaCoin, params.payByPrivateKey, params.transactionStateDB, params.meta)
 		return tx, err
 	case CustomTokenPrivacyType:
 		var propertyID [common.HashSize]byte
 		copy(propertyID[:], params.coinID[:])
-		receiver := &privacy.PaymentInfo{
-			Amount:         params.amount,
-			PaymentAddress: *params.payToAddress,
-		}
 		propID := common.Hash(propertyID)
-		tokenParams := &CustomTokenPrivacyParamTx{
-			PropertyID:     propID.String(),
-			PropertyName:   params.coinName,
-			PropertySymbol: params.coinName,
-			Amount:         params.amount,
-			TokenTxType:    CustomTokenInit,
-			Receiver:       []*privacy.PaymentInfo{receiver},
-			TokenInput:     []*privacy.InputCoin{},
-			Mintable:       true,
-		}
-		tx := &TxCustomTokenPrivacy{}
-		err := tx.Init(
-			NewTxPrivacyTokenInitParams(params.payByPrivateKey,
-				[]*privacy.PaymentInfo{},
-				nil,
-				0,
-				tokenParams,
-				params.transactionStateDB,
-				params.meta,
-				false,
-				false,
-				params.shardID,
-				nil,
-				params.bridgeStateDB))
+		tx := new(TxTokenVersion2)
+		err = tx.InitTxTokenSalary(otaCoin, params.payByPrivateKey, params.transactionStateDB,
+			params.meta, &propID, params.coinName)
+		return tx, err
+	}
+	return nil, nil
+}
+
+func validateTxParams(params *TxPrivacyInitParams) error {
+	if len(params.inputCoins) > 255 {
+		return NewTransactionErr(InputCoinIsVeryLargeError, nil, strconv.Itoa(len(params.inputCoins)))
+	}
+	if len(params.paymentInfo) > 254 {
+		return NewTransactionErr(PaymentInfoIsVeryLargeError, nil, strconv.Itoa(len(params.paymentInfo)))
+	}
+	limitFee := uint64(0)
+	estimateTxSizeParam := NewEstimateTxSizeParam(len(params.inputCoins), len(params.paymentInfo),
+		params.hasPrivacy, nil, nil, limitFee)
+	if txSize := EstimateTxSize(estimateTxSizeParam); txSize > common.MaxTxSize {
+		return NewTransactionErr(ExceedSizeTx, nil, strconv.Itoa(int(txSize)))
+	}
+
+	if params.tokenID == nil {
+		// using default PRV
+		params.tokenID = &common.Hash{}
+		err := params.tokenID.SetBytes(common.PRVCoinID[:])
 		if err != nil {
-			return nil, errors.New(err.Error())
+			return NewTransactionErr(TokenIDInvalidError, err, params.tokenID.String())
+		}
+	}
+	return nil
+}
+
+func parseTokenID(tokenID *common.Hash) (*common.Hash, error) {
+	if tokenID == nil {
+		result := new(common.Hash)
+		err := result.SetBytes(common.PRVCoinID[:])
+		if err != nil {
+			Logger.Log.Error(err)
+			return nil, NewTransactionErr(TokenIDInvalidError, err, tokenID.String())
+		}
+		return result, nil
+	}
+	return tokenID, nil
+}
+
+func verifySigNoPrivacy(sig []byte, sigPubKey []byte, hashedMessage []byte) (bool, error) {
+	// check input transaction
+	if sig == nil || sigPubKey == nil {
+		return false, NewTransactionErr(UnexpectedError, errors.New("input transaction must be an signed one"))
+	}
+
+	var err error
+	/****** verify Schnorr signature *****/
+	// prepare Public key for verification
+	verifyKey := new(privacy.SchnorrPublicKey)
+	sigPublicKey, err := new(operation.Point).FromBytesS(sigPubKey)
+
+	if err != nil {
+		Logger.Log.Error(err)
+		return false, NewTransactionErr(DecompressSigPubKeyError, err)
+	}
+	verifyKey.Set(sigPublicKey)
+
+	// convert signature from byte array to SchnorrSign
+	signature := new(privacy.SchnSignature)
+	err = signature.SetBytes(sig)
+	if err != nil {
+		Logger.Log.Error(err)
+		return false, NewTransactionErr(InitTxSignatureFromBytesError, err)
+	}
+
+	// verify signature
+	/*Logger.log.Debugf(" VERIFY SIGNATURE ----------- HASH: %v\n", tx.Hash()[:])
+	if tx.Proof != nil {
+		Logger.log.Debugf(" VERIFY SIGNATURE ----------- TX Proof bytes before verifing the signature: %v\n", tx.Proof.Bytes())
+	}
+	Logger.log.Debugf(" VERIFY SIGNATURE ----------- TX meta: %v\n", tx.Metadata)*/
+	res := verifyKey.Verify(signature, hashedMessage)
+	return res, nil
+}
+
+func signNoPrivacy(privKey *privacy.PrivateKey, hashedMessage []byte) (signatureBytes []byte, sigPubKey []byte, err error) {
+	/****** using Schnorr signature *******/
+	// sign with sigPrivKey
+	// prepare private key for Schnorr
+	sk := new(operation.Scalar).FromBytesS(*privKey)
+	r := new(operation.Scalar).FromUint64(0)
+	sigKey := new(schnorr.SchnorrPrivateKey)
+	sigKey.Set(sk, r)
+	signature, err := sigKey.Sign(hashedMessage)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	signatureBytes = signature.Bytes()
+	sigPubKey = sigKey.GetPublicKey().GetPublicKey().ToBytesS()
+	return signatureBytes, sigPubKey, nil
+}
+
+// Used to parse json
+type txJsonDataVersion struct {
+	Version int8 `json:"Version"`
+}
+
+func NewTransactionFromJsonBytes(data []byte) (metadata.Transaction, error) {
+	txJsonVersion := new(txJsonDataVersion)
+	if err := json.Unmarshal(data, txJsonVersion); err != nil {
+		return nil, err
+	}
+	if txJsonVersion.Version == TxVersion1Number {
+		tx := new(TxVersion1)
+		if err := json.Unmarshal(data, tx); err != nil {
+			return nil, err
+		}
+		return tx, nil
+	} else if txJsonVersion.Version == TxVersion2Number || txJsonVersion.Version == TxConversionVersion12Number {
+		tx := new(TxVersion2)
+		if err := json.Unmarshal(data, tx); err != nil {
+			return nil, err
 		}
 		return tx, nil
 	}
-	return nil, nil
+	return nil, errors.New("Cannot new transaction from json, version is not 1 or 2 or -1")
+}
+
+type txTokenJsonDataVersion struct {
+	Version int8 `json:"Version"`
+}
+
+func NewTransactionTokenFromJsonBytes(data []byte) (TxTokenInterface, error) {
+	txJsonVersion := new(txJsonDataVersion)
+	if err := json.Unmarshal(data, txJsonVersion); err != nil {
+		return nil, err
+	}
+	if txJsonVersion.Version == TxVersion1Number {
+		tx := new(TxTokenVersion1)
+		if err := json.Unmarshal(data, tx); err != nil {
+			return nil, err
+		}
+		return tx, nil
+	} else if txJsonVersion.Version == TxVersion2Number || txJsonVersion.Version == TxConversionVersion12Number {
+		tx := new(TxTokenVersion2)
+		if err := json.Unmarshal(data, tx); err != nil {
+			fmt.Println("????????????? what")
+			return nil, err
+		}
+		return tx, nil
+	}
+	fmt.Println("??????????????????")
+	return nil, errors.New("Cannot new transaction token from json, version is not 1 or 2 or -1")
 }

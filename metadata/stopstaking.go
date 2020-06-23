@@ -4,18 +4,35 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"reflect"
+	"strconv"
+
+	"github.com/incognitochain/incognito-chain/wallet"
+
+	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/incognitokey"
-	"github.com/incognitochain/incognito-chain/wallet"
 )
 
 type StopAutoStakingMetadata struct {
 	MetadataBase
 	CommitteePublicKey string
 }
+
+func (meta *StopAutoStakingMetadata) Hash() *common.Hash {
+	record := strconv.Itoa(meta.Type)
+	data := []byte(record)
+	data = append(data, meta.Sig...)
+	hash := common.HashH(data)
+	return &hash
+}
+
+func (meta *StopAutoStakingMetadata) HashWithoutSig() *common.Hash {
+	return meta.MetadataBase.Hash()
+}
+
+func (*StopAutoStakingMetadata) ShouldSignMetaData() bool { return true }
 
 func NewStopAutoStakingMetadata(stopStakingType int, committeePublicKey string) (*StopAutoStakingMetadata, error) {
 	if stopStakingType != StopAutoStakingMeta {
@@ -72,9 +89,21 @@ func (stopAutoStakingMetadata StopAutoStakingMetadata) ValidateTxWithBlockChain(
 		if err != nil {
 			return false, NewMetadataTxError(StopAutoStakingRequestStakingTransactionNotFoundError, err)
 		}
-		if !bytes.Equal(stakingTx.GetSender(), tx.GetSender()) {
-			return false, NewMetadataTxError(StopAutoStakingRequestInvalidTransactionSenderError, fmt.Errorf("Expect %+v to send stop auto staking request but get %+v", stakingTx.GetSender(), tx.GetSender()))
+
+		stakingMetadata := stakingTx.GetMetadata().(*StakingMetadata)
+		funderPaymentAddress := stakingMetadata.FunderPaymentAddress
+		funderWallet, err := wallet.Base58CheckDeserialize(funderPaymentAddress)
+		if err != nil || funderWallet == nil {
+			return false, errors.New("Invalid Funder Payment Address, Failed to Deserialized Into Key Wallet")
 		}
+
+		if ok, err := tx.CheckAuthorizedSender(funderWallet.KeySet.PaymentAddress.Pk); !ok || err != nil {
+			fmt.Println("Tx Meatadata Sig", tx.GetMetadata().GetSig())
+			fmt.Println("Check authorized sender:", ok, err)
+			return false, NewMetadataTxError(StopAutoStakingRequestInvalidTransactionSenderError, fmt.Errorf("Expect %+v to send stop auto staking request but get %+v", stakingTx.GetSigPubKey(), tx.GetSigPubKey()))
+		}
+		//if !bytes.Equal(stakingTx.GetSender(), txr.GetSender()) {
+		//}
 	}
 	autoStakingList := beaconViewRetriever.GetAutoStakingList()
 	if isAutoStaking, ok := autoStakingList[stopStakingMetadata.CommitteePublicKey]; !ok {
@@ -94,29 +123,21 @@ func (stopAutoStakingMetadata StopAutoStakingMetadata) ValidateTxWithBlockChain(
 	//
 */
 func (stopAutoStakingMetadata StopAutoStakingMetadata) ValidateSanityData(chainRetriever ChainRetriever, shardViewRetriever ShardViewRetriever, beaconViewRetriever BeaconViewRetriever, beaconHeight uint64, tx Transaction) (bool, bool, error) {
-	if tx.IsPrivacy() {
-		return false, false, errors.New("Stop AutoStaking Request Transaction Is No Privacy Transaction")
-	}
-	onlyOne, pubkey, amount := tx.GetUniqueReceiver()
-	if !onlyOne {
-		return false, false, errors.New("staking Transaction Should Have 1 Output Amount crossponding to 1 Receiver")
-	}
-
-	// get burning address
-	burningAddress := chainRetriever.GetBurningAddress(beaconHeight)
-	keyWalletBurningAdd, err := wallet.Base58CheckDeserialize(burningAddress)
+	isBurned, burnCoin, tokenID, err := tx.GetTxBurnData()
 	if err != nil {
-		return false, false, err
+		return false, false, errors.New("Error Cannot get burn data from tx")
 	}
-	if !bytes.Equal(pubkey, keyWalletBurningAdd.KeySet.PaymentAddress.Pk) {
-		return false, false, errors.New("receiver Should be Burning Address")
+	if !isBurned {
+		return false, false, errors.New("Error StopAutoStaking tx should be a burn tx")
 	}
-	if stopAutoStakingMetadata.Type != StopAutoStakingMeta && amount != StopAutoStakingAmount {
+	if !bytes.Equal(tokenID[:], common.PRVCoinID[:]) {
+		return false, false, errors.New("Error StopAutoStaking tx should transfer PRV only")
+	}
+	if stopAutoStakingMetadata.Type != StopAutoStakingMeta && burnCoin.GetValue() != StopAutoStakingAmount {
 		return false, false, errors.New("receiver amount should be zero")
 	}
 	CommitteePublicKey := new(incognitokey.CommitteePublicKey)
-	err = CommitteePublicKey.FromString(stopAutoStakingMetadata.CommitteePublicKey)
-	if err != nil {
+	if err := CommitteePublicKey.FromString(stopAutoStakingMetadata.CommitteePublicKey); err != nil {
 		return false, false, err
 	}
 	if !CommitteePublicKey.CheckSanityData() {
@@ -124,6 +145,7 @@ func (stopAutoStakingMetadata StopAutoStakingMetadata) ValidateSanityData(chainR
 	}
 	return true, true, nil
 }
+
 func (stopAutoStakingMetadata StopAutoStakingMetadata) GetType() int {
 	return stopAutoStakingMetadata.Type
 }

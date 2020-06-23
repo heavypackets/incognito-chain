@@ -44,9 +44,11 @@ const (
 
 // For all Transaction information
 const (
-	TxNormalType        = "n"  // normal tx(send and receive coin)
-	TxRewardType        = "s"  // reward tx
-	TxReturnStakingType = "rs" //
+	TxNormalType          = "n"   // normal tx(send and receive coin)
+	TxRewardType          = "s"   // reward tx
+	TxReturnStakingType   = "rs"  //
+	TxConversionType      = "cv"  // Convert 1 - 2 normal tx
+	TxTokenConversionType = "tcv" // Convert 1 - 2 token tx
 	//TxCustomTokenType        = "t"  // token  tx with no supporting privacy
 	TxCustomTokenPrivacyType = "tp" // token  tx with supporting privacy
 )
@@ -274,6 +276,12 @@ var MinAmountPortalPToken = map[string]uint64{
 
 const (
 	HexEmptyRoot = "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+)
+
+// burning addresses
+const (
+	BurningAddress  = "15pABFiJVeh9D5uiQEhQX4SVibGGbdAVipQxBdxkmDqAJaoG1EdFKHBrNfs"
+	BurningAddress2 = "12RxahVABnAVCGP3LGwCn8jkQxgw7z1x14wztHzn455TTVpi1wBq9YGwkRMQg3J4e657AbAnCvYCJSdA9czBUNuCKwGSRQt55Xwz8WA"
 )
 
 var (

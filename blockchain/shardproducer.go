@@ -14,7 +14,6 @@ import (
 	"github.com/incognitochain/incognito-chain/incognitokey"
 	"github.com/incognitochain/incognito-chain/metadata"
 	"github.com/incognitochain/incognito-chain/privacy"
-	"github.com/incognitochain/incognito-chain/transaction"
 )
 
 // NewBlockShard Create New block Shard:
@@ -155,10 +154,8 @@ func (blockchain *BlockChain) NewBlockShard(curView *ShardBestState, version int
 
 	for _, tx := range newShardBlock.Body.Transactions {
 		totalTxsFee[*tx.GetTokenID()] += tx.GetTxFee()
-		txType := tx.GetType()
-		if txType == common.TxCustomTokenPrivacyType {
-			txCustomPrivacy := tx.(*transaction.TxCustomTokenPrivacy)
-			totalTxsFee[*txCustomPrivacy.GetTokenID()] = txCustomPrivacy.GetTxFeeToken()
+		if tx.GetType() == common.TxCustomTokenPrivacyType {
+			totalTxsFee[*tx.GetTokenID()] = tx.GetTxFeeToken()
 		}
 	}
 	newShardBlock.Header = ShardHeader{
@@ -641,6 +638,10 @@ func (blockchain *BlockChain) generateInstruction(view *ShardBestState, shardID 
 //	   + Cross output coin
 //	   + Cross Normal Token
 func (blockGenerator *BlockGenerator) getCrossShardData(toShard byte, lastBeaconHeight uint64, currentBeaconHeight uint64) map[byte][]CrossTransaction {
+	fmt.Println("Check cross shard data ")
+	fmt.Println("Check cross shard data ")
+	fmt.Println("Check cross shard data ")
+
 	crossTransactions := make(map[byte][]CrossTransaction)
 	// get cross shard block
 	var allCrossShardBlock = make([][]*CrossShardBlock, blockGenerator.chain.config.ChainParams.ActiveShards)
@@ -649,6 +650,10 @@ func (blockGenerator *BlockGenerator) getCrossShardData(toShard byte, lastBeacon
 			allCrossShardBlock[sid] = append(allCrossShardBlock[sid], b.(*CrossShardBlock))
 		}
 	}
+	fmt.Println("Check cross shard data - len of all cross shard blocks", len(allCrossShardBlock))
+	fmt.Println("Check cross shard data - len of all cross shard blocks", len(allCrossShardBlock))
+	fmt.Println("Check cross shard data - len of all cross shard blocks", len(allCrossShardBlock))
+
 	// allCrossShardBlock => already short
 	for _, crossShardBlock := range allCrossShardBlock {
 		for _, blk := range crossShardBlock {
@@ -659,6 +664,7 @@ func (blockGenerator *BlockGenerator) getCrossShardData(toShard byte, lastBeacon
 				BlockHeight:      blk.Header.Height,
 			}
 			crossTransactions[blk.Header.ShardID] = append(crossTransactions[blk.Header.ShardID], crossTransaction)
+			fmt.Println("Check cross shard data", crossTransaction.OutputCoin)
 		}
 	}
 	return crossTransactions
@@ -756,10 +762,12 @@ func (blockGenerator *BlockGenerator) getPendingTransaction(
 }
 
 func (blockGenerator *BlockGenerator) createTempKeyset() privacy.PrivateKey {
-	rand.Seed(time.Now().UnixNano())
-	seed := make([]byte, 16)
-	rand.Read(seed)
-	return privacy.GeneratePrivateKey(seed)
+	b := make([]byte, common.HashSize)
+	_, err := rand.Read(b)
+	if err != nil {
+		panic("Cannot create random keyset")
+	}
+	return privacy.GeneratePrivateKey(b)
 }
 
 // committeeChanged checks if swap instructions really changed the committee list

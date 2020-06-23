@@ -3,10 +3,11 @@ package rpcservice
 import (
 	"errors"
 	"fmt"
+
 	"github.com/incognitochain/incognito-chain/blockchain"
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/incognitokey"
-	"github.com/incognitochain/incognito-chain/privacy"
+	"github.com/incognitochain/incognito-chain/privacy/coin"
 	"github.com/incognitochain/incognito-chain/rpcserver/jsonresult"
 	"github.com/incognitochain/incognito-chain/wallet"
 )
@@ -15,13 +16,13 @@ type CoinService struct {
 	BlockChain *blockchain.BlockChain
 }
 
-func (coinService CoinService) ListOutputCoinsByKeySet(keySet *incognitokey.KeySet, shardID byte) ([]*privacy.OutputCoin, error) {
+func (coinService CoinService) ListDecryptedOutputCoinsByKeySet(keySet *incognitokey.KeySet, shardID byte, shardHeight uint64) ([]coin.PlainCoin, error) {
 	prvCoinID := &common.Hash{}
 	err := prvCoinID.SetBytes(common.PRVCoinID[:])
 	if err != nil {
 		return nil, err
 	}
-	return coinService.BlockChain.GetListOutputCoinsByKeyset(keySet, shardID, prvCoinID)
+	return coinService.BlockChain.GetListDecryptedOutputCoinsByKeyset(keySet, shardID, prvCoinID, shardHeight)
 }
 
 func (coinService CoinService) ListUnspentOutputCoinsByKey(listKeyParams []interface{}) (*jsonresult.ListOutputCoins, *RPCError) {
@@ -48,23 +49,30 @@ func (coinService CoinService) ListUnspentOutputCoinsByKey(listKeyParams []inter
 			return nil, NewRPCError(ListUnspentOutputCoinsByKeyError, err)
 		}
 		keyWallet.KeySet = *keySetTmp
-		outCoins, err := coinService.ListOutputCoinsByKeySet(&keyWallet.KeySet, shardID)
+
+		// get shard height
+		shardHeightTemp, ok := keys["StartHeight"].(float64)
+		if !ok {
+			return nil, NewRPCError(RPCInvalidParamsError, errors.New("invalid height param"))
+		}
+		shardHeight := uint64(shardHeightTemp)
+
+		outCoins, err := coinService.ListDecryptedOutputCoinsByKeySet(&keyWallet.KeySet, shardID, shardHeight)
 		if err != nil {
 			return nil, NewRPCError(ListUnspentOutputCoinsByKeyError, err)
 		}
 		item := make([]jsonresult.OutCoin, 0)
 		for _, outCoin := range outCoins {
-			if outCoin.CoinDetails.GetValue() == 0 {
-				continue
+			if outCoin.GetValue() != 0 {
+				item = append(item, jsonresult.NewOutCoin(outCoin))
 			}
-			item = append(item, jsonresult.NewOutCoin(outCoin))
 		}
 		result.Outputs[privateKeyStr] = item
 	}
 	return result, nil
 }
 
-func (coinService CoinService) ListOutputCoinsByKey(listKeyParams []interface{}, tokenID common.Hash) (*jsonresult.ListOutputCoins, *RPCError) {
+func (coinService CoinService) ListDecryptedOutputCoinsByKey(listKeyParams []interface{}, tokenID common.Hash) (*jsonresult.ListOutputCoins, *RPCError) {
 	result := &jsonresult.ListOutputCoins{
 		Outputs: make(map[string][]jsonresult.OutCoin),
 	}
@@ -83,7 +91,7 @@ func (coinService CoinService) ListOutputCoinsByKey(listKeyParams []interface{},
 			readonlyKey, err = wallet.Base58CheckDeserialize(readonlyKeyStr)
 			if err != nil {
 				Logger.log.Debugf("Read onlyKey is invalid: err: %+v", err)
-				return nil, NewRPCError(ListOutputCoinsByKeyError, err)
+				return nil, NewRPCError(ListDecryptedOutputCoinsByKeyError, err)
 			}
 		}
 		// get keyset only contain public key by deserializing (required)
@@ -94,8 +102,16 @@ func (coinService CoinService) ListOutputCoinsByKey(listKeyParams []interface{},
 		paymentAddressKey, err := wallet.Base58CheckDeserialize(paymentAddressStr)
 		if err != nil {
 			Logger.log.Debugf("handleListOutputCoins result: %+v, err: %+v", nil, err)
-			return nil, NewRPCError(ListOutputCoinsByKeyError, err)
+			return nil, NewRPCError(ListDecryptedOutputCoinsByKeyError, err)
 		}
+
+		// Get start height
+		startHeightTemp, ok := keys["StartHeight"].(float64)
+		if !ok {
+			return nil, NewRPCError(RPCInvalidParamsError, errors.New("invalid start height"))
+		}
+		startHeight := uint64(startHeightTemp)
+
 		// create a key set
 		keySet := incognitokey.KeySet{
 			PaymentAddress: paymentAddressKey.KeySet.PaymentAddress,
@@ -106,13 +122,12 @@ func (coinService CoinService) ListOutputCoinsByKey(listKeyParams []interface{},
 		}
 		lastByte := keySet.PaymentAddress.Pk[len(keySet.PaymentAddress.Pk)-1]
 		shardIDSender := common.GetShardIDFromLastByte(lastByte)
-		outputCoins, err := coinService.BlockChain.GetListOutputCoinsByKeyset(&keySet, shardIDSender, &tokenID)
+		outputCoins, err := coinService.BlockChain.GetListDecryptedOutputCoinsByKeyset(&keySet, shardIDSender, &tokenID, startHeight)
 		if err != nil {
 			Logger.log.Debugf("handleListOutputCoins result: %+v, err: %+v", nil, err)
-			return nil, NewRPCError(ListOutputCoinsByKeyError, err)
+			return nil, NewRPCError(ListDecryptedOutputCoinsByKeyError, err)
 		}
 		item := make([]jsonresult.OutCoin, 0)
-
 		for _, outCoin := range outputCoins {
 			item = append(item, jsonresult.NewOutCoin(outCoin))
 		}

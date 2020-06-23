@@ -286,6 +286,13 @@ func RandBigIntMaxRange(max *big.Int) (*big.Int, error) {
 	return rand.Int(rand.Reader, max)
 }
 
+// RandBytes generates random bytes with length
+func RandBytes(length int) []byte {
+	rbytes := make([]byte, length)
+	rand.Read(rbytes)
+	return rbytes
+}
+
 // CompareStringArray receives 2 arrays of string
 // and check whether 2 arrays is the same or not
 func CompareStringArray(src []string, dst []string) bool {
@@ -467,6 +474,26 @@ func GetValidStaker(committees []string, stakers []string) []string {
 
 func GetShardChainKey(shardID byte) string {
 	return ShardChainKey + "-" + strconv.Itoa(int(shardID))
+}
+
+func Uint16ToBytes(v uint16) [2]byte {
+	var res [2]byte
+	res[0] = uint8(v >> 8)
+	res[1] = uint8(v & 0xff)
+	return res
+}
+
+func BytesToUint16(b [2]byte) uint16 {
+	return uint16(b[0])<<8 + uint16(b[1])
+}
+
+func BytesSToUint16(b []byte) (uint16, error) {
+	if len(b) != 2 {
+		return 0, errors.New("Cannot convert BytesSToUint16: length of byte is not 2")
+	}
+	var bytes [2]byte
+	copy(bytes[:], b[:2])
+	return BytesToUint16(bytes), nil
 }
 
 func IsPortalToken(tokenIDStr string) bool {

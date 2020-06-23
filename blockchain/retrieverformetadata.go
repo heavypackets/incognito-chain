@@ -1,5 +1,7 @@
 package blockchain
 
+import "github.com/incognitochain/incognito-chain/common"
+
 func (blockchain *BlockChain) GetStakingAmountShard() uint64 {
 	return blockchain.config.ChainParams.StakingAmountShard
 }
@@ -30,9 +32,10 @@ func (blockchain *BlockChain) GetBurningAddress(beaconHeight uint64) string {
 	if beaconHeight == 0 {
 		beaconHeight = blockchain.BeaconChain.GetFinalViewHeight()
 	}
+
 	if beaconHeight <= breakPoint {
-		return burningAddress
+		return common.BurningAddress
 	}
 
-	return burningAddress2
+	return common.BurningAddress2
 }

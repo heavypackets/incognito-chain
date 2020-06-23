@@ -34,6 +34,26 @@ func (httpServer *HttpServer) handleCreateRawTransaction(params interface{}, clo
 	return result, nil
 }
 
+func (httpServer *HttpServer) handleCreateRawConvertVer1ToVer2Transaction(params interface{}, closeChan <-chan struct{}) (interface{}, *rpcservice.RPCError) {
+	Logger.log.Debugf("handleCreateRawConvertVer1ToVer2Transaction params: %+v", params)
+
+	// create new param to build raw tx from param interface
+	createRawTxParam, errNewParam := bean.NewCreateRawTxSwitchVer1ToVer2Param(params)
+	if errNewParam != nil {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, errNewParam)
+	}
+
+	txHash, txBytes, txShardID, err := httpServer.txService.CreateRawConvertVer1ToVer2Transaction(createRawTxParam, nil)
+	if err != nil {
+		// return hex for a new tx
+		return nil, err
+	}
+
+	result := jsonresult.NewCreateTransactionResult(txHash, common.EmptyString, txBytes, txShardID)
+	Logger.log.Debugf("handleCreateRawConvertVer1ToVer2Transaction result: %+v", result)
+	return result, nil
+}
+
 // handleSendTransaction implements the sendtransaction command.
 // Parameter #1—a serialized transaction to broadcast
 // Parameter #2–whether to allow high fees
@@ -63,6 +83,28 @@ func (httpServer *HttpServer) handleSendRawTransaction(params interface{}, close
 	}
 
 	result := jsonresult.NewCreateTransactionResult(txHash, common.EmptyString, nil, common.GetShardIDFromLastByte(LastBytePubKeySender))
+	return result, nil
+}
+
+func (httpServer *HttpServer) handleCreateConvertCoinVer1ToVer2Transaction(params interface{}, closeChan <-chan struct{}) (interface{}, *rpcservice.RPCError) {
+	Logger.log.Debugf("handleCreateConvertCoinVer1ToVer2Transaction params: %+v", params)
+	var err error
+	data, err := httpServer.handleCreateRawConvertVer1ToVer2Transaction(params, closeChan)
+	if err.(*rpcservice.RPCError) != nil {
+		Logger.log.Debugf("handleCreateConvertCoinVer1ToVer2Transaction result: %+v, err: %+v", nil, err)
+		return nil, rpcservice.NewRPCError(rpcservice.CreateTxDataError, err)
+	}
+	tx := data.(jsonresult.CreateTransactionResult)
+	base58CheckData := tx.Base58CheckData
+	newParam := make([]interface{}, 0)
+	newParam = append(newParam, base58CheckData)
+	sendResult, err := httpServer.handleSendRawTransaction(newParam, closeChan)
+	if err.(*rpcservice.RPCError) != nil {
+		Logger.log.Debugf("handleCreateConvertCoinVer1ToVer2Transaction result: %+v, err: %+v", nil, err)
+		return nil, rpcservice.NewRPCError(rpcservice.SendTxDataError, err)
+	}
+	result := jsonresult.NewCreateTransactionResult(nil, sendResult.(jsonresult.CreateTransactionResult).TxID, nil, tx.ShardID)
+	Logger.log.Debugf("handleCreateConvertCoinVer1ToVer2Transaction result: %+v", result)
 	return result, nil
 }
 
@@ -174,6 +216,8 @@ func (httpServer *HttpServer) handleGetListPrivacyCustomTokenBalance(params inte
 	return result, nil
 }
 
+// #1 param: privateKey string
+// #2 param: tokenID
 // handleGetListPrivacyCustomTokenBalance - return list privacy token + balance for one account payment address
 func (httpServer *HttpServer) handleGetBalancePrivacyCustomToken(params interface{}, closeChan <-chan struct{}) (interface{}, *rpcservice.RPCError) {
 	arrayParams := common.InterfaceSlice(params)
@@ -527,18 +571,19 @@ func (httpServer *HttpServer) handleCreateRawPrivacyCustomTokenTransaction(param
 		Logger.log.Error(err)
 		return nil, rpcservice.NewRPCError(rpcservice.CreateTxDataError, err)
 	}
-
 	byteArrays, err := json.Marshal(tx)
 	if err != nil {
 		Logger.log.Error(err)
 		return nil, rpcservice.NewRPCError(rpcservice.CreateTxDataError, err)
 	}
+
+	tokenData := tx.GetTxPrivacyTokenData()
 	result := jsonresult.CreateTransactionTokenResult{
-		ShardID:         common.GetShardIDFromLastByte(tx.Tx.PubKeyLastByteSender),
+		ShardID:         common.GetShardIDFromLastByte(tx.GetTxBase().GetSenderAddrLastByte()),
 		TxID:            tx.Hash().String(),
-		TokenID:         tx.TxPrivacyTokenData.PropertyID.String(),
-		TokenName:       tx.TxPrivacyTokenData.PropertyName,
-		TokenAmount:     tx.TxPrivacyTokenData.Amount,
+		TokenID:         tokenData.PropertyID.String(),
+		TokenName:       tokenData.PropertyName,
+		TokenAmount:     tokenData.Amount,
 		Base58CheckData: base58.Base58Check{}.Encode(byteArrays, 0x00),
 	}
 	return result, nil
@@ -566,12 +611,13 @@ func (httpServer *HttpServer) handleSendRawPrivacyCustomTokenTransaction(params 
 	if err == nil {
 		httpServer.config.TxMemPool.MarkForwardedTransaction(*tx.Hash())
 	}
+	tokenData := tx.GetTxPrivacyTokenData()
 	result := jsonresult.CreateTransactionTokenResult{
 		TxID:        tx.Hash().String(),
-		TokenID:     tx.TxPrivacyTokenData.PropertyID.String(),
-		TokenName:   tx.TxPrivacyTokenData.PropertyName,
-		TokenAmount: tx.TxPrivacyTokenData.Amount,
-		ShardID:     common.GetShardIDFromLastByte(tx.Tx.PubKeyLastByteSender),
+		TokenID:     tokenData.PropertyID.String(),
+		TokenName:   tokenData.PropertyName,
+		TokenAmount: tokenData.Amount,
+		ShardID:     common.GetShardIDFromLastByte(tx.GetTxBase().GetSenderAddrLastByte()),
 	}
 	return result, nil
 }

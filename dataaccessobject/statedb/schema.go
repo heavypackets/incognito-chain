@@ -3,9 +3,10 @@ package statedb
 import (
 	"bytes"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/common"
 	"sort"
 	"strconv"
+
+	"github.com/incognitochain/incognito-chain/common"
 )
 
 var (
@@ -24,6 +25,10 @@ var (
 	commitmentLengthPrefix             = []byte("com-length-")
 	snDerivatorPrefix                  = []byte("sn-derivator-")
 	outputCoinPrefix                   = []byte("output-coin-")
+	otaCoinPrefix                      = []byte("ota-coin-")
+	otaCoinIndexPrefix                 = []byte("ota-index-")
+	otaCoinLengthPrefix                = []byte("ota-length-")
+	onetimeAddressPrefix               = []byte("onetime-address-")
 	tokenPrefix                        = []byte("token-")
 	tokenTransactionPrefix             = []byte("token-transaction-")
 	waitingPDEContributionPrefix       = []byte("waitingpdecontribution-")
@@ -153,6 +158,26 @@ func GetSNDerivatorPrefix(tokenID common.Hash) []byte {
 
 func GetOutputCoinPrefix(tokenID common.Hash, shardID byte, publicKey []byte) []byte {
 	h := common.HashH(append(outputCoinPrefix, append(tokenID[:], append(publicKey, shardID)...)...))
+	return h[:][:prefixHashKeyLength]
+}
+
+func GetOTACoinPrefix(tokenID common.Hash, shardID byte, height []byte) []byte {
+	h := common.HashH(append(otaCoinPrefix, append(tokenID[:], append(height, shardID)...)...))
+	return h[:][:prefixHashKeyLength]
+}
+
+func GetOTACoinIndexPrefix(tokenID common.Hash, shardID byte) []byte {
+	h := common.HashH(append(otaCoinIndexPrefix, append(tokenID[:], shardID)...))
+	return h[:][:prefixHashKeyLength]
+}
+
+func GetOTACoinLengthPrefix() []byte {
+	h := common.HashH(otaCoinLengthPrefix)
+	return h[:][:prefixHashKeyLength]
+}
+
+func GetOnetimeAddressPrefix(tokenID common.Hash) []byte {
+	h := common.HashH(append(onetimeAddressPrefix, tokenID[:]...))
 	return h[:][:prefixHashKeyLength]
 }
 

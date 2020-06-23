@@ -34,9 +34,11 @@ func CreateShardGenesisBlock(
 	}
 
 	for _, tx := range icoParams.InitialIncognito {
-		testSalaryTX := transaction.Tx{}
-		testSalaryTX.UnmarshalJSON([]byte(tx))
-		body.Transactions = append(body.Transactions, &testSalaryTX)
+		testSalaryTX, err := transaction.NewTransactionFromJsonBytes([]byte(tx))
+		if err != nil {
+			panic("Something is wrong when NewTransactionFromJsonBytes")
+		}
+		body.Transactions = append(body.Transactions, testSalaryTX)
 	}
 
 	block := &ShardBlock{

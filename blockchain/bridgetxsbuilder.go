@@ -5,9 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
+	"github.com/incognitochain/incognito-chain/privacy/coin"
 	"math/big"
 	"strconv"
+
+	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 
 	rCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/incognitochain/incognito-chain/common"
@@ -240,24 +242,20 @@ func (blockGenerator *BlockGenerator) buildIssuanceTx(contentStr string, produce
 		Amount:         issuingAcceptedInst.DepositedAmount,
 		TokenTxType:    transaction.CustomTokenInit,
 		Receiver:       []*privacy.PaymentInfo{receiver},
-		TokenInput:     []*privacy.InputCoin{},
+		TokenInput:     []coin.PlainCoin{},
 		Mintable:       true,
 	}
-	resTx := &transaction.TxCustomTokenPrivacy{}
-	initErr := resTx.Init(
-		transaction.NewTxPrivacyTokenInitParams(producerPrivateKey,
-			[]*privacy.PaymentInfo{},
-			nil,
-			0,
-			tokenParams,
-			shardView.GetCopiedTransactionStateDB(),
-			issuingRes,
-			false,
-			false,
-			shardID,
-			nil,
-			beaconView.GetBeaconFeatureStateDB()))
+	txTokenParams := transaction.NewTxPrivacyTokenInitParams(producerPrivateKey,
+		[]*privacy.PaymentInfo{}, nil, 0,
+		tokenParams, shardView.GetCopiedTransactionStateDB(), issuingRes,
+		false, false, shardID, nil, beaconView.GetBeaconFeatureStateDB())
+	resTx, err := transaction.NewTransactionTokenFromParams(txTokenParams)
+	if err != nil {
+		Logger.log.Errorf("Cannot create transaction token from param err %v", err)
+		return nil, err
+	}
 
+	initErr := resTx.Init(txTokenParams)
 	if initErr != nil {
 		Logger.log.Info("WARNING: an error occured while initializing response tx: ", initErr)
 		return nil, nil
@@ -302,7 +300,7 @@ func (blockGenerator *BlockGenerator) buildETHIssuanceTx(contentStr string, prod
 		Amount:      issuingETHAcceptedInst.IssuingAmount,
 		TokenTxType: transaction.CustomTokenInit,
 		Receiver:    []*privacy.PaymentInfo{receiver},
-		TokenInput:  []*privacy.InputCoin{},
+		TokenInput:  []coin.PlainCoin{},
 		Mintable:    true,
 	}
 
@@ -312,20 +310,18 @@ func (blockGenerator *BlockGenerator) buildETHIssuanceTx(contentStr string, prod
 		issuingETHAcceptedInst.ExternalTokenID,
 		metadata.IssuingETHResponseMeta,
 	)
-	resTx := &transaction.TxCustomTokenPrivacy{}
-	initErr := resTx.Init(
-		transaction.NewTxPrivacyTokenInitParams(producerPrivateKey,
-			[]*privacy.PaymentInfo{},
-			nil,
-			0,
-			tokenParams,
-			shardView.GetCopiedTransactionStateDB(),
-			issuingETHRes,
-			false,
-			false,
-			shardID, nil,
-			beaconView.GetBeaconFeatureStateDB()))
+	txTokenParams := transaction.NewTxPrivacyTokenInitParams(producerPrivateKey,
+		[]*privacy.PaymentInfo{}, nil, 0,
+		tokenParams, shardView.GetCopiedTransactionStateDB(),
+		issuingETHRes, false, false,
+		shardID, nil, beaconView.GetBeaconFeatureStateDB())
 
+	resTx, err := transaction.NewTransactionTokenFromParams(txTokenParams)
+	if err != nil {
+		Logger.log.Errorf("Cannot create transaction token from param err %v", err)
+		return nil, err
+	}
+	initErr := resTx.Init(txTokenParams)
 	if initErr != nil {
 		Logger.log.Info("WARNING: an error occured while initializing response tx: ", initErr)
 		return nil, nil

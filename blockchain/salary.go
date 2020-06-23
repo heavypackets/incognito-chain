@@ -1,7 +1,9 @@
 package blockchain
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/incognitochain/incognito-chain/privacy/coin"
 	"strconv"
 
 	"github.com/incognitochain/incognito-chain/common"
@@ -55,10 +57,27 @@ func (blockGenerator *BlockGenerator) buildReturnStakingAmountTx(view *ShardBest
 		keyWallet.KeySet.PaymentAddress,
 		metadata.ReturnStakingMeta,
 	)
-	returnStakingTx := new(transaction.Tx)
+	returnStakingTx := new(transaction.TxVersion2)
+	isBurned, burnCoin, tokenID, err := txData.GetTxBurnData()
+	if err != nil {
+		return nil, errors.New("Error Cannot get burn data from tx")
+	}
+	if !isBurned {
+		return nil, errors.New("Error Staking tx should be a burn tx")
+	}
+	if !bytes.Equal(tokenID[:], common.PRVCoinID[:]) {
+		return nil, errors.New("Error Staking tx should transfer PRV only")
+	}
+
+	otaCoin, err := coin.NewCoinFromAmountAndReceiver(burnCoin.GetValue(), keyWallet.KeySet.PaymentAddress)
+	if err != nil {
+		Logger.log.Errorf("Cannot get new coin from amount and receiver")
+		return nil, err
+	}
+	// must set shared random to validate the coorrect of mint coin
+	returnStakingMeta.SetSharedRandom(otaCoin.GetSharedRandom().ToBytesS())
 	err = returnStakingTx.InitTxSalary(
-		txData.CalculateTxValue(),
-		&keyWallet.KeySet.PaymentAddress,
+		otaCoin,
 		blkProducerPrivateKey,
 		view.GetCopiedTransactionStateDB(),
 		returnStakingMeta,

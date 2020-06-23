@@ -12,8 +12,8 @@ import (
 //component:
 //Parameter #1—the minimum number of confirmations an output must have
 //Parameter #2—the maximum number of confirmations an output may have
-//Parameter #3—the list priv-key which be used to view utxo
-//
+//Parameter #3—the list priv-key which be used to view utxo which also includes the fromHeight of each key
+//From height is used to efficiently fetch onetimeaddress outputCoins
 func (httpServer *HttpServer) handleListUnspentOutputCoins(params interface{}, closeChan <-chan struct{}) (interface{}, *rpcservice.RPCError) {
 
 	// get component
@@ -109,7 +109,7 @@ func (httpServer *HttpServer) handleListOutputCoins(params interface{}, closeCha
 			return nil, rpcservice.NewRPCError(rpcservice.ListTokenNotFoundError, err1)
 		}
 	}
-	result, err1 := httpServer.outputCoinService.ListOutputCoinsByKey(listKeyParams, *tokenID)
+	result, err1 := httpServer.outputCoinService.ListDecryptedOutputCoinsByKey(listKeyParams, *tokenID)
 	if err1 != nil {
 		return nil, err1
 	}
