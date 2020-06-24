@@ -3,7 +3,6 @@ package transaction
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/incognitochain/incognito-chain/privacy/operation"
 	"github.com/incognitochain/incognito-chain/privacy/privacy_v1/schnorr"
 	"github.com/incognitochain/incognito-chain/wallet"
