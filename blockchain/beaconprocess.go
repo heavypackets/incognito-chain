@@ -1507,6 +1507,8 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 	if err != nil {
 		return NewBlockChainError(StoreBeaconBlockError, err)
 	}
+	newBestState.BlockStateDBRootHash = blockRootHash
+
 	newBestState.consensusStateDB.ClearObjects()
 	newBestState.rewardStateDB.ClearObjects()
 	newBestState.featureStateDB.ClearObjects()

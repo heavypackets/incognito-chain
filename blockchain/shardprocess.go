@@ -1102,6 +1102,11 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 		); err != nil {
 			return NewBlockChainError(StoreShardBlockError, err)
 		}
+		err = newShardState.blockStateDB.Database().TrieDB().Commit(blockRootHash, false)
+		if err != nil {
+			return NewBlockChainError(StoreShardBlockError, err)
+		}
+		newShardState.BlockStateDBRootHash = blockRootHash
 	}
 	// consensus root hash
 	consensusRootHash, err := newShardState.consensusStateDB.Commit(true)
