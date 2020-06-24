@@ -1211,15 +1211,15 @@ func (stateDB *StateDB) getBurningConfirmState(key common.Hash) (*BurningConfirm
 }
 
 // ================================= Block merkle OBJECT =======================================
-func (stateDB *StateDB) getBlockMerkleNode(key common.Hash) ([]byte, bool, error) {
+func (stateDB *StateDB) getBlockMerkleNode(key common.Hash) (common.Hash, bool, error) {
 	blockMerkleObject, err := stateDB.getStateObject(BlockMerkleObjectType, key)
 	if err != nil {
-		return nil, false, err
+		return common.Hash{}, false, err
 	}
 	if blockMerkleObject != nil {
-		return blockMerkleObject.GetValue().([]byte), true, nil
+		return blockMerkleObject.GetValue().(common.Hash), true, nil
 	}
-	return nil, false, nil
+	return common.Hash{}, false, nil
 }
 
 // ================================= Portal OBJECT =======================================

@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/incognitochain/incognito-chain/common"
@@ -16,7 +17,14 @@ func addToBlockMerkle(
 	blkHeight uint64,
 	blkHash common.Hash,
 ) (common.Hash, error) {
-	if err := storeBlockMerkle(blockStateDB, blockStateDBRootHash, shardID, blkHeight, blkHash); err != nil {
+	fmt.Printf("[db] addToBlockMerkle: root %s, shardID %d, blkHeight %d blkHash %s\n", blockStateDBRootHash.String(), shardID, blkHeight, blkHash.String())
+	if err := storeBlockMerkle(
+		blockStateDB,
+		blockStateDBRootHash,
+		shardID,
+		blkHeight,
+		blkHash,
+	); err != nil {
 		return common.Hash{}, NewBlockChainError(StoreShardBlockError, err)
 	}
 	newBlockRootHash, err := blockStateDB.Commit(true)
@@ -40,12 +48,12 @@ func storeBlockMerkle(
 	blkHeight uint64,
 	blkHash common.Hash,
 ) error {
-	// Load the current merkle tree
+	// Load the latest merkle tree
 	tree, err := loadIncrementalMerkle(
 		blockStateDB,
 		blockStateDBRootHash,
 		shardID,
-		blkHeight-1,
+		blkHeight, // Previous tree has X blocks (including dummy block with height = 0)
 	)
 	if err != nil {
 		return err
@@ -59,9 +67,11 @@ func storeBlockMerkle(
 	}
 
 	// Store the merkle tree's nodes changed by the new block
+	fmt.Printf("[db] storeBlockMerkle: nodes: %+v, indices: %+v\n", nodes, indices)
 	for level, h := range nodes {
 		hash := common.BytesToHash(h)
 		index := indices[level]
+		fmt.Printf("[db] store block merkle node: level %d index %d hash %s\n", level, index, hash.String())
 		if err := statedb.StoreBlockMerkleNode(blockStateDB, shardID, byte(level), index, hash); err != nil {
 			return err
 		}
@@ -77,12 +87,17 @@ func loadIncrementalMerkle(
 	stateDB *statedb.StateDB,
 	rootHash common.Hash,
 	shardID byte,
-	blkHeight uint64,
+	treeLen uint64, // Number of leaves in the merkle tree (i.e., blockHeight-1)
 ) (*IncrementalMerkleTree, error) {
-	index := blkHeight - 1                          // Block h is stored at the leaf with index h-1 in the tree
-	maxLevel := byte(math.Log2(float64(blkHeight))) // Height of the merkle tree
+	fmt.Printf("[db] loadIncrementalMerkle: root %s, shardID %d, treeLen %d\n", rootHash.String(), shardID, treeLen)
+	if treeLen == 0 {
+		return InitIncrementalMerkleTree(common.Keccak256Bytes, [][]byte{}, 0), nil
+	}
 
-	hashes := make([][]byte, maxLevel)
+	index := uint64(treeLen) - 1                  // Block h is stored at the leaf with index h-1 in the tree
+	maxLevel := byte(math.Log2(float64(treeLen))) // Height of the merkle tree
+
+	hashes := make([][]byte, maxLevel+1)
 	for level := byte(0); level <= maxLevel; level++ {
 		indexAtLevel := (index + 1) >> level
 		if indexAtLevel%2 == 0 {
@@ -98,6 +113,6 @@ func loadIncrementalMerkle(
 		}
 	}
 
-	tree := InitIncrementalMerkleTree(common.Keccak256Bytes, hashes, blkHeight)
+	tree := InitIncrementalMerkleTree(common.Keccak256Bytes, hashes, treeLen)
 	return tree, nil
 }

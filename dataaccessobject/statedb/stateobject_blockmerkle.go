@@ -85,10 +85,13 @@ func newBlockMerkleObject(db *StateDB, hash common.Hash) *BlockMerkleObject {
 
 func newBlockMerkleObjectWithValue(db *StateDB, key common.Hash, data interface{}) (*BlockMerkleObject, error) {
 	var newBlockMerkleHash = common.Hash{}
-	var ok bool
-	var dataBytes []byte
-	if dataBytes, ok = data.([]byte); ok {
-		newBlockMerkleHash.SetBytes(dataBytes)
+	if dataHash, ok := data.(common.Hash); ok {
+		newBlockMerkleHash = dataHash
+	} else if dataBytes, ok := data.([]byte); ok {
+		err := json.Unmarshal(dataBytes, &newBlockMerkleHash)
+		if err != nil {
+			return nil, fmt.Errorf("%+v, unmarshal err %+v", ErrInvalidBlockMerkleHashType, err)
+		}
 	} else {
 		return nil, fmt.Errorf("%+v, got type %+v", ErrInvalidBlockMerkleHashType, reflect.TypeOf(data))
 	}
@@ -125,13 +128,11 @@ func (c BlockMerkleObject) GetValueBytes() []byte {
 }
 
 func (c *BlockMerkleObject) SetValue(data interface{}) error {
-	blkHash, ok := data.([]byte)
+	blkHash, ok := data.(common.Hash)
 	if !ok {
 		return fmt.Errorf("%+v, got type %+v", ErrInvalidBlockMerkleHashType, reflect.TypeOf(data))
 	}
-	h := common.Hash{}
-	h.SetBytes(blkHash)
-	c.blockHash = h
+	c.blockHash = blkHash
 	return nil
 }
 

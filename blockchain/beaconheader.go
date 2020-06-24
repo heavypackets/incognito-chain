@@ -28,8 +28,9 @@ type BeaconHeader struct {
 	ProducerPubKeyStr               string      `json:"ProducerPubKeyStr"`
 
 	//for version 2
-	Proposer    string `json:"Proposer"`
-	ProposeTime int64  `json:"ProposeTime"`
+	Proposer        string      `json:"Proposer"`
+	ProposeTime     int64       `json:"ProposeTime"`
+	BlockMerkleRoot common.Hash `json:"BlockMerkleRoot"` // Merkle root of all blocks in the chain to relay to Ethereum
 }
 
 func (beaconHeader *BeaconHeader) toString() string {

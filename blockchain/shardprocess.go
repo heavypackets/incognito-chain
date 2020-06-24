@@ -395,6 +395,23 @@ func (blockchain *BlockChain) verifyPreProcessingShardBlock(curView *ShardBestSt
 	if !bytes.Equal(root, shardBlock.Header.InstructionMerkleRoot[:]) {
 		return NewBlockChainError(InstructionMerkleRootError, fmt.Errorf("Expect transaction merkle root to be %+v but get %+v", shardBlock.Header.InstructionMerkleRoot, string(root)))
 	}
+	if shardID == common.BridgeShardID {
+		// Check if BlockMerkleRoot is the root of merkle tree containing all blocks
+		tree, err := loadIncrementalMerkle(
+			curView.blockStateDB,
+			curView.BlockStateDBRootHash,
+			shardID,
+			curView.ShardHeight,
+		)
+		if err != nil {
+			return NewBlockChainError(BlockMerkleRootError, fmt.Errorf("Fail to load block merkle tree: %+v", err))
+		}
+		tree.Add([][]byte{shardBlock.Header.PreviousBlockHash[:]})
+		if root := tree.GetRoot(); !bytes.Equal(root[:], shardBlock.Header.BlockMerkleRoot[:]) {
+			return NewBlockChainError(BlockMerkleRootError, fmt.Errorf("Expect block merkle root to be %s but get %s", common.BytesToHash(root).String(), shardBlock.Header.BlockMerkleRoot.String()))
+		}
+	}
+
 	//Get beacon hash by height in db
 	//If hash not found then fail to verify
 	beaconHashs, err := rawdbv2.GetBeaconBlockHashByIndex(blockchain.GetBeaconChainDatabase(), shardBlock.Header.BeaconHeight)
@@ -723,14 +740,17 @@ func (shardBestState *ShardBestState) initShardBestState(blockchain *BlockChain,
 	shardBestState.TransactionStateDBRootHash = common.EmptyRoot
 	shardBestState.BlockStateDBRootHash = common.EmptyRoot
 
-	// Block merkle tree: insert genesis block
+	// Block merkle tree: insert dummy block with height 0
 	if genesisShardBlock.Header.ShardID == common.BridgeShardID {
+		// if err := shardBestState.blockStateDB.Database().TrieDB().Commit(common.EmptyRoot, false); err != nil {
+		// 	return err
+		// }
 		if newRootHash, err := addToBlockMerkle(
 			shardBestState.blockStateDB,
 			shardBestState.BlockStateDBRootHash,
 			genesisShardBlock.Header.ShardID,
-			genesisShardBlock.Header.Height,
-			genesisShardBlock.Header.Hash(),
+			genesisShardBlock.Header.Height-1,
+			genesisShardBlock.Header.PreviousBlockHash,
 		); err != nil {
 			return err
 		} else {
@@ -1070,6 +1090,19 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	if err != nil {
 		return NewBlockChainError(StoreShardBlockError, err)
 	}
+	// blocks merkle tree
+	var blockRootHash common.Hash
+	if shardID == common.BridgeShardID {
+		if blockRootHash, err = addToBlockMerkle(
+			newShardState.blockStateDB,
+			newShardState.BlockStateDBRootHash,
+			shardID,
+			shardBlock.Header.Height-1,
+			shardBlock.Header.PreviousBlockHash,
+		); err != nil {
+			return NewBlockChainError(StoreShardBlockError, err)
+		}
+	}
 	// consensus root hash
 	consensusRootHash, err := newShardState.consensusStateDB.Commit(true)
 	if err != nil {
@@ -1118,13 +1151,6 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	err = newShardState.slashStateDB.Database().TrieDB().Commit(slashRootHash, false)
 	if err != nil {
 		return NewBlockChainError(StoreShardBlockError, err)
-	}
-	// blocks merkle tree
-	var blockRootHash common.Hash
-	if shardID == common.BridgeShardID {
-		if blockRootHash, err = newShardState.blockStateDB.Commit(true); err != nil {
-			return NewBlockChainError(StoreShardBlockError, err)
-		}
 	}
 
 	newShardState.consensusStateDB.ClearObjects()

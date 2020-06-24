@@ -359,6 +359,20 @@ func (blockchain *BlockChain) verifyPreProcessingBeaconBlock(curView *BeaconBest
 	if !bytes.Equal(root, beaconBlock.Header.InstructionMerkleRoot[:]) {
 		return NewBlockChainError(FlattenAndConvertStringInstError, fmt.Errorf("Expect Instruction Merkle Root in Beacon Block Header to be %+v but get %+v", string(beaconBlock.Header.InstructionMerkleRoot[:]), string(root)))
 	}
+	// Check if BlockMerkleRoot is the root of merkle tree containing all blocks
+	tree, err := loadIncrementalMerkle(
+		curView.blockStateDB,
+		curView.BlockStateDBRootHash,
+		byte(255),
+		curView.BeaconHeight,
+	)
+	if err != nil {
+		return NewBlockChainError(BlockMerkleRootError, fmt.Errorf("Fail to load block merkle tree: %+v", err))
+	}
+	tree.Add([][]byte{beaconBlock.Header.PreviousBlockHash[:]})
+	if root := tree.GetRoot(); !bytes.Equal(root[:], beaconBlock.Header.BlockMerkleRoot[:]) {
+		return NewBlockChainError(BlockMerkleRootError, fmt.Errorf("Expect block merkle root to be %s but get %s", common.BytesToHash(root).String(), beaconBlock.Header.BlockMerkleRoot.String()))
+	}
 	// if pool does not have one of needed block, fail to verify
 	beaconVerifyPreprocesingTimer.UpdateSince(startTimeVerifyPreProcessingBeaconBlock)
 	if isPreSign {
@@ -897,24 +911,28 @@ func (beaconBestState *BeaconBestState) initBeaconBestState(genesisBeaconBlock *
 	beaconBestState.RewardStateDBRootHash = common.EmptyRoot
 	beaconBestState.FeatureStateDBRootHash = common.EmptyRoot
 	beaconBestState.currentPDEState, err = InitCurrentPDEStateFromDB(beaconBestState.featureStateDB, beaconBestState.BeaconHeight)
-	beaconBestState.BlockStateDBRootHash = common.EmptyRoot
 	if err != nil {
 		return err
 	}
 
-	// Block merkle tree: insert genesis block
+	// Block merkle tree: save empty merkle root to database
+	// if err := beaconBestState.blockStateDB.Database().TrieDB().Commit(common.EmptyRoot, false); err != nil {
+	// 	return err
+	// }
 	if newRootHash, err := addToBlockMerkle(
 		beaconBestState.blockStateDB,
-		beaconBestState.BlockStateDBRootHash,
-		byte(255), // Use shardID = 255 for beacon
-		genesisBeaconBlock.Header.Height,
-		genesisBeaconBlock.Header.Hash(),
+		common.EmptyRoot, // Previous tree doesn't exist, use empty root hash
+		byte(255),        // Use shardID = 255 for beacon
+		genesisBeaconBlock.Header.Height-1,
+		genesisBeaconBlock.Header.PreviousBlockHash,
 	); err != nil {
 		return err
 	} else {
+		Logger.log.Infof("[db] initBeaconBestState genesis root hash: %s %s", common.EmptyRoot, newRootHash.String())
 		if err := beaconBestState.blockStateDB.Database().TrieDB().Commit(newRootHash, false); err != nil {
 			return err
 		}
+		beaconBestState.BlockStateDBRootHash = newRootHash
 	}
 	//statedb===========================END
 	return nil
@@ -1474,13 +1492,20 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 		return err
 	}
 	newBestState.SlashStateDBRootHash = slashRootHash
-	blockRootHash, err := newBestState.blockStateDB.Commit(true)
+	// blocks merkle tree
+	blockRootHash, err := addToBlockMerkle(
+		newBestState.blockStateDB,
+		newBestState.BlockStateDBRootHash, // Root hash of previous best state
+		byte(255),
+		beaconBlock.Header.Height-1,
+		beaconBlock.Header.PreviousBlockHash,
+	)
 	if err != nil {
-		return err
+		return NewBlockChainError(StoreBeaconBlockError, err)
 	}
 	err = newBestState.blockStateDB.Database().TrieDB().Commit(blockRootHash, false)
 	if err != nil {
-		return err
+		return NewBlockChainError(StoreBeaconBlockError, err)
 	}
 	newBestState.consensusStateDB.ClearObjects()
 	newBestState.rewardStateDB.ClearObjects()

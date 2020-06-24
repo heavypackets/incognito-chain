@@ -144,6 +144,21 @@ func (chain *ShardChain) CreateNewBlock(version int, proposer string, round int,
 	if version == 2 {
 		newBlock.Header.Proposer = proposer
 		newBlock.Header.ProposeTime = startTime
+
+		if chain.shardID == common.BridgeShardID {
+			view := chain.GetBestState()
+			tree, err := loadIncrementalMerkle(
+				view.blockStateDB,
+				view.BlockStateDBRootHash,
+				byte(chain.shardID),
+				view.ShardHeight,
+			)
+			if err != nil {
+				return nil, err
+			}
+			tree.Add([][]byte{newBlock.Header.PreviousBlockHash[:]})
+			newBlock.Header.BlockMerkleRoot = common.BytesToHash(tree.GetRoot())
+		}
 	}
 
 	Logger.log.Infof("Finish Create New Block")

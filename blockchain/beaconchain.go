@@ -147,9 +147,25 @@ func (chain *BeaconChain) CreateNewBlock(version int, proposer string, round int
 	if err != nil {
 		return nil, err
 	}
+	Logger.log.Infof("[db] version: %v\n", version)
 	if version == 2 {
 		newBlock.Header.Proposer = proposer
 		newBlock.Header.ProposeTime = startTime
+
+		view := chain.GetBestView().(*BeaconBestState)
+		Logger.log.Infof("[db] CreateNewBlock loading: %s %d", view.BlockStateDBRootHash.String(), view.BeaconHeight)
+		tree, err := loadIncrementalMerkle(
+			view.blockStateDB,
+			view.BlockStateDBRootHash,
+			byte(255),
+			view.BeaconHeight,
+		)
+		if err != nil {
+			return nil, err
+		}
+		tree.Add([][]byte{newBlock.Header.PreviousBlockHash[:]})
+		newBlock.Header.BlockMerkleRoot = common.BytesToHash(tree.GetRoot())
+		Logger.log.Infof("[db] beacon root: %s\n", newBlock.Header.BlockMerkleRoot.String())
 	}
 
 	return newBlock, nil

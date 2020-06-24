@@ -1,6 +1,8 @@
 package blockchain
 
 import (
+	"fmt"
+
 	"github.com/incognitochain/incognito-chain/common"
 )
 
@@ -62,6 +64,7 @@ func (tree *IncrementalMerkleTree) Add(data [][]byte) {
 // This method helps updating the merkle tree in database without having to update all nodes
 // The return values are the hash of the updated nodes and their indices at each level
 func (tree *IncrementalMerkleTree) SimulateAdd(data []byte) ([][]byte, []uint64, error) {
+	fmt.Printf("[db] SimulateAdd: tree length %d, tree.nodes %d len(data) %d\n", tree.length, len(tree.nodes), len(data))
 	// Get hash of the leaf of new node
 	id := tree.length // Index of the adding leaf
 	h := common.HashLR(tree.hasher, id, data)
