@@ -12,7 +12,6 @@ import (
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/consensus/signatureschemes/blsmultisig"
 	"github.com/incognitochain/incognito-chain/incognitokey"
-	"github.com/incognitochain/incognito-chain/metadata"
 	"github.com/incognitochain/incognito-chain/wire"
 )
 
@@ -387,13 +386,10 @@ func (e *BLSBFT_V2) validateAndVote(v *ProposeBlockInfo) error {
 		e.Logger.Error(err)
 		return NewConsensusError(UnExpectedError, err)
 	}
-	bridgeSig := []byte{}
-	if metadata.HasBridgeInstructions(v.block.GetInstructions()) {
-		bridgeSig, err = e.UserKeySet.BriSignData(v.block.Hash().GetBytes())
-		if err != nil {
-			e.Logger.Error(err)
-			return NewConsensusError(UnExpectedError, err)
-		}
+	bridgeSig, err := e.UserKeySet.BriSignData(v.block.Hash().GetBytes())
+	if err != nil {
+		e.Logger.Error(err)
+		return NewConsensusError(UnExpectedError, err)
 	}
 	Vote.BLS = blsSig
 	Vote.BRI = bridgeSig

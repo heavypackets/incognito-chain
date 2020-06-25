@@ -19,3 +19,14 @@ type GetInstructionProof struct {
 	BridgeSigs           []string
 	BridgeSigIdxs        []int
 }
+
+// GetFinalityProof contains the proof that 2 blocks N and N+1 is valid and N is finalled
+// The proof also contains the block-merkle roots of each block to save on Ethereum side
+type GetFinalityProof struct {
+	BlkData       [2]string
+	InstRoot      [2]string
+	BlkMerkleRoot string // Root of the block merkle tree of the 2nd block
+	ProposeTime   [2]uint64
+	Sigs          [2][]string // Hex encoded signature (r, s, v)
+	SigIdxs       [2][]int    // Idxs of signer
+}

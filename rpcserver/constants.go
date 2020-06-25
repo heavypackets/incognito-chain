@@ -150,6 +150,7 @@ const (
 	getBridgeSwapProof       = "getbridgeswapproof"
 	getLatestBridgeSwapProof = "getlatestbridgeswapproof"
 	getBurnProof             = "getburnproof"
+	getFinalityProof         = "getfinalityproof"
 
 	// reward
 	CreateRawWithDrawTransaction = "withdrawreward"

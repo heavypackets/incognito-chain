@@ -136,6 +136,7 @@ var HttpHandler = map[string]httpHandler{
 	getBridgeSwapProof:       (*HttpServer).handleGetBridgeSwapProof,
 	getLatestBridgeSwapProof: (*HttpServer).handleGetLatestBridgeSwapProof,
 	getBurnProof:             (*HttpServer).handleGetBurnProof,
+	getFinalityProof:         (*HttpServer).handleGetFinalityProof,
 
 	//reward
 	CreateRawWithDrawTransaction: (*HttpServer).handleCreateAndSendWithDrawTransaction,

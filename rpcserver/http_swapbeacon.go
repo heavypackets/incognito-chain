@@ -3,8 +3,9 @@ package rpcserver
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/incdb"
 	"strconv"
+
+	"github.com/incognitochain/incognito-chain/incdb"
 
 	"github.com/incognitochain/incognito-chain/rpcserver/rpcservice"
 
@@ -139,6 +140,8 @@ func getShardAndBeaconBlocks(
 type block interface {
 	common.BlockInterface // to be able to get ValidationData from ConsensusEngine
 
+	BlockMerkleRoot() []byte
+	ProposeTime() int64
 	InstructionMerkleRoot() []byte
 	MetaHash() []byte
 	Sig(ce ConsensusEngine) ([][]byte, []int, error)
@@ -313,6 +316,14 @@ func (bb *beaconBlock) Sig(ce ConsensusEngine) ([][]byte, []int, error) {
 	return ce.ExtractBridgeValidationData(bb)
 }
 
+func (bb *beaconBlock) ProposeTime() int64 {
+	return bb.Header.ProposeTime
+}
+
+func (bb *beaconBlock) BlockMerkleRoot() []byte {
+	return bb.Header.BlockMerkleRoot[:]
+}
+
 type shardBlock struct {
 	*blockchain.ShardBlock
 }
@@ -328,6 +339,14 @@ func (sb *shardBlock) MetaHash() []byte {
 
 func (sb *shardBlock) Sig(ce ConsensusEngine) ([][]byte, []int, error) {
 	return ce.ExtractBridgeValidationData(sb)
+}
+
+func (sb *shardBlock) ProposeTime() int64 {
+	return sb.Header.ProposeTime
+}
+
+func (sb *shardBlock) BlockMerkleRoot() []byte {
+	return sb.Header.BlockMerkleRoot[:]
 }
 
 // findBeaconBlockWithInst finds a beacon block with a specific instruction and the instruction's index; nil if not found
