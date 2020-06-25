@@ -362,7 +362,6 @@ func (blockchain *BlockChain) verifyPreProcessingBeaconBlock(curView *BeaconBest
 	// Check if BlockMerkleRoot is the root of merkle tree containing all blocks
 	tree, err := loadIncrementalMerkle(
 		curView.blockStateDB,
-		curView.BlockStateDBRootHash,
 		byte(255),
 		curView.BeaconHeight,
 	)
@@ -921,8 +920,7 @@ func (beaconBestState *BeaconBestState) initBeaconBestState(genesisBeaconBlock *
 	// }
 	if newRootHash, err := addToBlockMerkle(
 		beaconBestState.blockStateDB,
-		common.EmptyRoot, // Previous tree doesn't exist, use empty root hash
-		byte(255),        // Use shardID = 255 for beacon
+		byte(255), // Use shardID = 255 for beacon
 		genesisBeaconBlock.Header.Height-1,
 		genesisBeaconBlock.Header.PreviousBlockHash,
 	); err != nil {
@@ -1495,7 +1493,6 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 	// blocks merkle tree
 	blockRootHash, err := addToBlockMerkle(
 		newBestState.blockStateDB,
-		newBestState.BlockStateDBRootHash, // Root hash of previous best state
 		byte(255),
 		beaconBlock.Header.Height-1,
 		beaconBlock.Header.PreviousBlockHash,

@@ -149,7 +149,6 @@ func (chain *ShardChain) CreateNewBlock(version int, proposer string, round int,
 			view := chain.GetBestState()
 			tree, err := loadIncrementalMerkle(
 				view.blockStateDB,
-				view.BlockStateDBRootHash,
 				byte(chain.shardID),
 				view.ShardHeight,
 			)

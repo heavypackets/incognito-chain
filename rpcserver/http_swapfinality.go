@@ -6,6 +6,7 @@ import (
 
 	"github.com/incognitochain/incognito-chain/blockchain"
 	"github.com/incognitochain/incognito-chain/common"
+	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"github.com/incognitochain/incognito-chain/rpcserver/jsonresult"
 	"github.com/incognitochain/incognito-chain/rpcserver/rpcservice"
 	"github.com/pkg/errors"
@@ -118,4 +119,77 @@ func buildFinalityProofResult(proof1, proof2 *finalityProof) jsonresult.GetFinal
 		Sigs:          [2][]string{proof1.signerSigs, proof2.signerSigs},
 		SigIdxs:       [2][]int{proof1.sigIdxs, proof2.sigIdxs},
 	}
+}
+
+func (httpServer *HttpServer) handleGetAncestorProof(params interface{}, closeChan <-chan struct{}) (interface{}, *rpcservice.RPCError) {
+	listParams, ok := params.([]interface{})
+	if !ok || len(listParams) < 2 {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, errors.New("param must be an array at least 1 element"))
+	}
+
+	shardParam, ok := listParams[0].(float64)
+	if !ok {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, errors.New("shard param is invalid"))
+	}
+	shardID := byte(shardParam)
+
+	ancestorHeightParam, ok := listParams[1].(float64)
+	if !ok {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, errors.New("ancestor height is invalid"))
+	}
+	ancestorHeight := uint64(ancestorHeightParam)
+
+	ancestorHash, ok := listParams[2].(string)
+	if !ok {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, errors.New("Tx id invalid"))
+	}
+	ancestor, err := common.Hash{}.NewHashFromStr(ancestorHash)
+	if err != nil {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, err)
+	}
+	_ = ancestor
+
+	rootBlockHeightParam, ok := listParams[3].(float64)
+	if !ok {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, errors.New("root height is invalid"))
+	}
+	rootBlockHeight := uint64(rootBlockHeightParam)
+
+	rootHash, ok := listParams[4].(string)
+	if !ok {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, errors.New("Tx id invalid"))
+	}
+	root, err := common.Hash{}.NewHashFromStr(rootHash)
+	if err != nil {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, err)
+	}
+
+	bc := httpServer.GetBlockchain()
+	db := bc.GetShardChainDatabase(shardID)
+	dbAccessWarper := statedb.NewDatabaseAccessWarper(db)
+	stateDB, err := statedb.NewWithPrefixTrie(*root, dbAccessWarper)
+	if err != nil {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, err)
+	}
+	hashes, err := blockchain.GetMerkleProofWithRoot(
+		stateDB,
+		shardID,
+		ancestorHeight-1,
+		rootBlockHeight,
+	)
+	if err != nil {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, err)
+	}
+
+	return buildAncestorProof(hashes), nil
+}
+
+func buildAncestorProof(hashes [][]byte) jsonresult.GetAncestorProof {
+	proof := jsonresult.GetAncestorProof{
+		Hash: []string{},
+	}
+	for _, h := range hashes {
+		proof.Hash = append(proof.Hash, hex.EncodeToString(h))
+	}
+	return proof
 }

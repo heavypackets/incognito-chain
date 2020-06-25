@@ -12,15 +12,13 @@ import (
 // and return the updated root hash
 func addToBlockMerkle(
 	blockStateDB *statedb.StateDB,
-	blockStateDBRootHash common.Hash,
 	shardID byte,
 	blkHeight uint64,
 	blkHash common.Hash,
 ) (common.Hash, error) {
-	fmt.Printf("[db] addToBlockMerkle: root %s, shardID %d, blkHeight %d blkHash %s\n", blockStateDBRootHash.String(), shardID, blkHeight, blkHash.String())
+	fmt.Printf("[db] addToBlockMerkle: shardID %d, blkHeight %d blkHash %s\n", shardID, blkHeight, blkHash.String())
 	if err := storeBlockMerkle(
 		blockStateDB,
-		blockStateDBRootHash,
 		shardID,
 		blkHeight,
 		blkHash,
@@ -43,7 +41,6 @@ func addToBlockMerkle(
 // This method doesn't commit the new root hash though, caller must call commit and save the root hash accordingly
 func storeBlockMerkle(
 	blockStateDB *statedb.StateDB,
-	blockStateDBRootHash common.Hash,
 	shardID byte,
 	blkHeight uint64,
 	blkHash common.Hash,
@@ -51,7 +48,6 @@ func storeBlockMerkle(
 	// Load the latest merkle tree
 	tree, err := loadIncrementalMerkle(
 		blockStateDB,
-		blockStateDBRootHash,
 		shardID,
 		blkHeight, // Previous tree has X blocks (including dummy block with height = 0)
 	)
@@ -85,11 +81,10 @@ func storeBlockMerkle(
 // the key in the database and the blockHeight to know the height of the tree.
 func loadIncrementalMerkle(
 	stateDB *statedb.StateDB,
-	rootHash common.Hash,
 	shardID byte,
 	treeLen uint64, // Number of leaves in the merkle tree (i.e., blockHeight-1)
 ) (*IncrementalMerkleTree, error) {
-	fmt.Printf("[db] loadIncrementalMerkle: root %s, shardID %d, treeLen %d\n", rootHash.String(), shardID, treeLen)
+	fmt.Printf("[db] loadIncrementalMerkle: shardID %d, treeLen %d\n", shardID, treeLen)
 	if treeLen == 0 {
 		return InitIncrementalMerkleTree(common.Keccak256Bytes, [][]byte{}, 0), nil
 	}
@@ -115,4 +110,26 @@ func loadIncrementalMerkle(
 
 	tree := InitIncrementalMerkleTree(common.Keccak256Bytes, hashes, treeLen)
 	return tree, nil
+}
+
+func GetMerkleProofWithRoot(
+	stateDB *statedb.StateDB,
+	shardID byte,
+	leafID uint64,
+	treeLen uint64,
+) ([][]byte, error) {
+	maxLevel := byte(math.Log2(float64(treeLen))) // Height of the merkle tree
+	hashes := make([][]byte, maxLevel+1)
+
+	for level := byte(0); level <= maxLevel; level++ {
+		sibling := leafID ^ 1
+		if hash, err := statedb.GetBlockMerkleNode(stateDB, shardID, level, sibling); err == nil {
+			hashes[level] = hash[:]
+		} else {
+			return nil, err
+		}
+
+		leafID /= 2
+	}
+	return hashes, nil
 }

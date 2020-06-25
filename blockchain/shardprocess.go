@@ -399,7 +399,6 @@ func (blockchain *BlockChain) verifyPreProcessingShardBlock(curView *ShardBestSt
 		// Check if BlockMerkleRoot is the root of merkle tree containing all blocks
 		tree, err := loadIncrementalMerkle(
 			curView.blockStateDB,
-			curView.BlockStateDBRootHash,
 			shardID,
 			curView.ShardHeight,
 		)
@@ -747,7 +746,6 @@ func (shardBestState *ShardBestState) initShardBestState(blockchain *BlockChain,
 		// }
 		if newRootHash, err := addToBlockMerkle(
 			shardBestState.blockStateDB,
-			shardBestState.BlockStateDBRootHash,
 			genesisShardBlock.Header.ShardID,
 			genesisShardBlock.Header.Height-1,
 			genesisShardBlock.Header.PreviousBlockHash,
@@ -1095,7 +1093,6 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	if shardID == common.BridgeShardID {
 		if blockRootHash, err = addToBlockMerkle(
 			newShardState.blockStateDB,
-			newShardState.BlockStateDBRootHash,
 			shardID,
 			shardBlock.Header.Height-1,
 			shardBlock.Header.PreviousBlockHash,

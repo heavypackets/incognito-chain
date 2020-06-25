@@ -156,7 +156,6 @@ func (chain *BeaconChain) CreateNewBlock(version int, proposer string, round int
 		Logger.log.Infof("[db] CreateNewBlock loading: %s %d", view.BlockStateDBRootHash.String(), view.BeaconHeight)
 		tree, err := loadIncrementalMerkle(
 			view.blockStateDB,
-			view.BlockStateDBRootHash,
 			byte(255),
 			view.BeaconHeight,
 		)

@@ -30,3 +30,7 @@ type GetFinalityProof struct {
 	Sigs          [2][]string // Hex encoded signature (r, s, v)
 	SigIdxs       [2][]int    // Idxs of signer
 }
+
+type GetAncestorProof struct {
+	Hash []string
+}
