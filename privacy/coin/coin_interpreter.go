@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	MaxSizeInfoCoin   = 255
-	CoinVersion1      = 1
+	MaxSizeInfoCoin = 255
+	//CoinVersion1    = 1
 	CoinVersion2      = 2
 	TxRandomGroupSize = 36
 )

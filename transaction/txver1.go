@@ -50,7 +50,7 @@ func (tx *TxVersion1) GetReceiverData() ([]coin.Coin, error) {
 	}
 	coins := make([]coin.Coin, 0)
 	for i := 0; i < len(pubkeys); i++ {
-		coin := new(coin.CoinV1)
+		coin := new(coin.CoinV1).Init()
 		coin.CoinDetails.SetPublicKey(pubkeys[i])
 		coin.CoinDetails.SetValue(amounts[i])
 		coins = append(coins, coin)
@@ -332,9 +332,6 @@ func (tx *TxVersion1) sign() error {
 	tx.SigPubKey = sigKey.GetPublicKey().GetPublicKey().ToBytesS()
 
 	// signing
-	if Logger.Log != nil {
-		Logger.Log.Debugf(tx.Hash().String())
-	}
 	signature, err := sigKey.Sign(tx.Hash()[:])
 	if err != nil {
 		return err
@@ -449,6 +446,8 @@ func (tx *TxVersion1) verifySig() (bool, error) {
 		Logger.Log.Error(err)
 		return false, NewTransactionErr(InitTxSignatureFromBytesError, err)
 	}
+	txByte, _ := json.Marshal(tx)
+	fmt.Println(string(txByte))
 	res := verifyKey.Verify(signature, tx.Hash()[:])
 	return res, nil
 }

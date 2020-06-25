@@ -3,9 +3,10 @@ package wire
 import (
 	"encoding/hex"
 	"encoding/json"
+	"github.com/incognitochain/incognito-chain/transaction"
 
-	"github.com/incognitochain/incognito-chain/incognitokey"
 	"github.com/incognitochain/incognito-chain/common"
+	"github.com/incognitochain/incognito-chain/incognitokey"
 	"github.com/incognitochain/incognito-chain/metadata"
 	"github.com/libp2p/go-libp2p-peer"
 )
@@ -40,9 +41,13 @@ func (msg *MessageTx) JsonSerialize() ([]byte, error) {
 }
 
 func (msg *MessageTx) JsonDeserialize(jsonStr string) error {
-	jsonDecodeString, _ := hex.DecodeString(jsonStr)
-	err := json.Unmarshal([]byte(jsonDecodeString), msg)
-	return err
+	jsonDecode, _ := hex.DecodeString(jsonStr)
+	tx, err := transaction.NewTransactionFromJsonBytes(jsonDecode)
+	if err != nil {
+		return err
+	}
+	msg.Transaction = tx
+	return nil
 }
 
 func (msg *MessageTx) SetSenderID(senderID peer.ID) error {
