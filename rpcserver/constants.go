@@ -151,6 +151,7 @@ const (
 	getLatestBridgeSwapProof = "getlatestbridgeswapproof"
 	getBurnProof             = "getburnproof"
 	getFinalityProof         = "getfinalityproof"
+	getAncestorProof         = "getancestorproof"
 
 	// reward
 	CreateRawWithDrawTransaction = "withdrawreward"
