@@ -424,7 +424,7 @@ func NewTransactionFromJsonBytes(data []byte) (metadata.Transaction, error) {
 		return nil, err
 	}
 	switch txJsonVersion.Version {
-	case int8(TxVersion1Number):
+	case int8(TxVersion1Number), int8(TxVersion0Number):
 		tx := new(TxVersion1)
 		if err := json.Unmarshal(data, tx); err != nil {
 			return nil, err
@@ -437,13 +437,8 @@ func NewTransactionFromJsonBytes(data []byte) (metadata.Transaction, error) {
 		}
 		return tx, nil
 	default:
-		tx := new(TxVersion1)
-		if err := json.Unmarshal(data, tx); err != nil {
-			return nil, err
-		}
-		return tx, nil
+		return nil, errors.New("Cannot new transaction from json, version is wrong")
 	}
-	return nil, errors.New("Cannot new transaction from json, version is wrong")
 }
 
 type txTokenJsonDataVersion struct {
