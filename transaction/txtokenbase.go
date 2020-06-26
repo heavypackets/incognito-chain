@@ -34,9 +34,9 @@ func NewTransactionTokenFromParams(params *TxPrivacyTokenInitParams) (TxTokenInt
 		return nil, errors.New("Cannot create transaction from txprivacyinitparams, have both coin version 1 and 2")
 	}
 	if !check[1] && !check[2] {
-		return new(TxTokenVersion2), nil
-		//return nil, errors.New("Cannot create transaction from txprivacyinitparams, does not have both coin version 1 and 2")
+		return nil, errors.New("Cannot create transaction from txprivacyinitparams, does not have both coin version 1 and 2")
 	}
+
 	if check[1] {
 		return new(TxTokenVersion1), nil
 	}
@@ -50,7 +50,7 @@ type Tx = metadata.Transaction
 
 type TxTokenBase struct {
 	Tx
-	TxTokenData TxTokenData `json:"TxPrivacyTokenData"`
+	TxTokenData TxTokenData `json:"TxTokenPrivacyData"`
 }
 
 func GetTxTokenDataFromTransaction(tx metadata.Transaction) *TxTokenData {
@@ -150,7 +150,7 @@ func (txToken *TxTokenBase) CheckAuthorizedSender([]byte) (bool, error) {
 func (txToken TxTokenBase) MarshalJSON() ([]byte, error) {
 	type TemporaryTxToken struct {
 		TxBase
-		TxPrivacyTokenData TxTokenData `json:"TxPrivacyTokenData"`
+		TxPrivacyTokenData TxTokenData `json:"TxTokenPrivacyData"`
 	}
 	tempTx := TemporaryTxToken{}
 	tempTx.TxPrivacyTokenData = txToken.GetTxPrivacyTokenData()
@@ -176,7 +176,7 @@ func (txToken *TxTokenBase) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	temp := &struct {
-		TxTokenData TxTokenData `json:"TxPrivacyTokenData"`
+		TxTokenData TxTokenData `json:"TxTokenPrivacyData"`
 	}{}
 	err = json.Unmarshal(data, &temp)
 	if err != nil {
