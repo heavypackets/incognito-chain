@@ -92,7 +92,7 @@ func (tree *IncrementalMerkleTree) SimulateAdd(data []byte) ([][]byte, []uint64,
 	return updatedNodes, updatedIdxs, nil
 }
 
-// GetRoot calculates the root of the merkle tree built so far
+// GetRoot returns the root of the tree built so far
 // For an empty tree, the root is 32 bytes of 0
 // For a tree with one element, the root is the element itself
 // Otherwise, calculate bottom up to get the root
@@ -100,36 +100,52 @@ func (tree *IncrementalMerkleTree) GetRoot() []byte {
 	if tree.length == 0 {
 		return make([]byte, 32)
 	}
+	paths := tree.GetPathToRoot()
+	return paths[len(paths)-1]
+}
 
+// GetPathToRoot calculates the path from the right-mode node to the root of the tree
+// The returned path is only partially completed
+// If the tree only stores nodes from height X and above, the path won't contain the
+// nodes lower than X
+func (tree *IncrementalMerkleTree) GetPathToRoot() [][]byte {
 	// Find the newest subtree that all nodes have values:
 	// i.e.: first non-nil value in our tree
+	paths := make([][]byte, len(tree.nodes)+1)
 	var root []byte
 	k := 0
 	for i, sibling := range tree.nodes {
 		if sibling != nil {
 			root = sibling
 			k = i
+			paths[k] = root
 			break
 		}
 	}
+
 	if k+1 >= len(tree.nodes) {
-		return root // If it's the last node, we have a full binary merkle tree
+		// If it's the last node, we have a full binary merkle tree
+		// So let's duplicate the last node so that the root will be stored in the last position of variable `paths`
+		paths[len(paths)-1] = root
+		return paths
 	}
 
 	// Since there's still some nodes left at higher levels,
 	// this subtree must be the left subtree
 	id := (tree.length - 1) / 2
 	root = common.HashLR(tree.hasher, id, root, root) // Duplicate and get hash of parent
+	paths[k+1] = root
 
 	// Go up the tree and calculate the root of the parent node
-	for _, sibling := range tree.nodes[k+1:] {
+	for i, sibling := range tree.nodes[k+1:] {
 		id = id / 2
 		if sibling == nil {
 			sibling = root
 		}
 		root = common.HashLR(tree.hasher, id, sibling, root)
+		paths[k+i+2] = root
 	}
-	return root
+	return paths
 }
 
 func (tree *IncrementalMerkleTree) GetLength() uint64 {

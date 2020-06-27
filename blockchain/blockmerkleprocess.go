@@ -118,18 +118,37 @@ func GetMerkleProofWithRoot(
 	leafID uint64,
 	treeLen uint64,
 ) ([][]byte, error) {
-	maxLevel := byte(math.Log2(float64(treeLen))) // Height of the merkle tree
-	hashes := make([][]byte, maxLevel+1)
+	// Get merkle tree at that height
+	tree, err := loadIncrementalMerkle(
+		stateDB,
+		shardID,
+		treeLen,
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	for level := byte(0); level <= maxLevel; level++ {
+	// Precompute 'phantom' nodes: those that are duplicated to calculate the hash of parent's node
+	phantoms := tree.GetPathToRoot()
+
+	maxLevel := byte(math.Log2(float64(treeLen-1))) + 1 // Height of the full merkle tree without root
+	hashes := make([][]byte, maxLevel)                  // No need to return root
+	maxID := treeLen - 1                                // ID of the right-most node at leaf level
+	for level := byte(0); level < maxLevel; level++ {
 		sibling := leafID ^ 1
-		if hash, err := statedb.GetBlockMerkleNode(stateDB, shardID, level, sibling); err == nil {
-			hashes[level] = hash[:]
+		fmt.Printf("[db] getting node: level = %v, id = %v, max = %v\n", level, sibling, maxID)
+		if sibling <= maxID { // The merkle tree must have stored this node
+			if hash, err := statedb.GetBlockMerkleNode(stateDB, shardID, level, sibling); err == nil {
+				hashes[level] = hash[:]
+			} else {
+				return nil, err
+			}
 		} else {
-			return nil, err
+			hashes[level] = phantoms[level]
 		}
 
 		leafID /= 2
+		maxID = (maxID - 1) / 2
 	}
 	return hashes, nil
 }

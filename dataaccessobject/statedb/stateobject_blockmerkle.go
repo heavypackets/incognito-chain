@@ -107,9 +107,9 @@ func newBlockMerkleObjectWithValue(db *StateDB, key common.Hash, data interface{
 	}, nil
 }
 
-func GenerateBlockMerkleObjectKey(shardID, level byte, height uint64) common.Hash {
+func GenerateBlockMerkleObjectKey(shardID, level byte, index uint64) common.Hash {
 	data := append(blockMerklePrefix, []byte{shardID, level}...)
-	data = append(data, common.Uint64ToBytes(height)...)
+	data = append(data, common.Uint64ToBytes(index)...)
 	h := common.HashH(data)
 	return h
 }
