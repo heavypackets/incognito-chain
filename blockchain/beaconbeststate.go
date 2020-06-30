@@ -449,9 +449,8 @@ func (beaconBestState *BeaconBestState) GetBeaconCandidate() []incognitokey.Comm
 	return append(current, next...)
 }
 func (beaconBestState *BeaconBestState) GetBeaconCommittee() []incognitokey.CommitteePublicKey {
-
 	result := []incognitokey.CommitteePublicKey{}
-	return append(result, beaconBestState.GetBeaconCommittee()...)
+	return append(result, beaconBestState.beaconCommitteeEngine.GetBeaconCommittee()...)
 }
 
 func (beaconBestState *BeaconBestState) GetCommittee() []incognitokey.CommitteePublicKey {
@@ -515,7 +514,7 @@ func (beaconBestState *BeaconBestState) cloneBeaconBestStateFrom(target *BeaconB
 	beaconBestState.featureStateDB = target.featureStateDB.Copy()
 	beaconBestState.rewardStateDB = target.rewardStateDB.Copy()
 	beaconBestState.slashStateDB = target.slashStateDB.Copy()
-
+	beaconBestState.beaconCommitteeEngine = target.beaconCommitteeEngine
 	return nil
 }
 
