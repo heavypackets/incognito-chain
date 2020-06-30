@@ -107,17 +107,17 @@ const (
 	TestnetName             = "testnet"
 	TestnetDefaultPort      = "9444"
 	TestnetGenesisBlockTime = "2019-11-29T00:00:00.000Z"
-	TestnetEpoch            = 100
-	TestnetRandomTime       = 50
+	TestnetEpoch            = 10
+	TestnetRandomTime       = 5
 	TestnetOffset           = 1
 	TestnetSwapOffset       = 1
 	TestnetAssignOffset     = 2
 
-	TestNetShardCommitteeSize     = 16
+	TestNetShardCommitteeSize     = 4
 	TestNetMinShardCommitteeSize  = 4
 	TestNetBeaconCommitteeSize    = 4
 	TestNetMinBeaconCommitteeSize = 4
-	TestNetActiveShards           = 8
+	TestNetActiveShards           = 2
 	TestNetStakingAmountShard     = 1750000000000 // 1750 PRV = 1750 * 10^9 nano PRV
 
 	TestNetMinBeaconBlkInterval = 10 * time.Second //second
@@ -127,7 +127,6 @@ const (
 
 	//board and proposal parameters
 	TestnetBasicReward = 400000000 //40 mili PRV
-	//TestnetETHContractAddressStr            = "0x6e8CDB333ba1573Fffe195A545F3031Cff9Da008"
 	//TestnetETHContractAddressStr            = "0x87470Ad15A76DEdc5CFC6668F9aC023a89EA10e8"
 	//TestnetETHContractAddressStr            = "0xe77aBF10cC0c30Ab3Ac2d877add39553cA7a8654"
 	//TestnetETHContractAddressStr            = "0x79382223241799fc1706a85adf9df4231715A731"
