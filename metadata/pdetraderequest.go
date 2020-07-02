@@ -95,13 +95,15 @@ func (pc PDETradeRequest) ValidateSanityData(chainRetriever ChainRetriever, shar
 	if len(traderAddr.Pk) == 0 {
 		return false, false, errors.New("Wrong request info's trader address")
 	}
-	txRandomB, err := base58.Decode(pc.TxRandomStr)
-	if err != nil {
-		return false, false, errors.New("Wrong request info's txRandom - Cannot decode base58 string")
-	}
-	txRandom := new(coin.TxRandom)
-	if err := txRandom.SetBytes(txRandomB); err != nil {
-		return false, false, errors.New("Wrong request info's txRandom - Cannot set txRandom from bytes")
+	if len(pc.TxRandomStr) > 0 {
+		txRandomB, err := base58.Decode(pc.TxRandomStr)
+		if err != nil {
+			return false, false, errors.New("Wrong request info's txRandom - Cannot decode base58 string")
+		}
+		txRandom := new(coin.TxRandom)
+		if err := txRandom.SetBytes(txRandomB); err != nil {
+			return false, false, errors.New("Wrong request info's txRandom - Cannot set txRandom from bytes")
+		}
 	}
 
 	isBurned, burnCoin, burnedTokenID, err := tx.GetTxBurnData()
