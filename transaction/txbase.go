@@ -37,9 +37,9 @@ type TxBase struct {
 	// Metadata, optional
 	Metadata metadata.Metadata
 	// private field, not use for json parser, only use as temp variable
-	sigPrivKey       []byte  // is ALWAYS private property of struct, if privacy: 64 bytes, and otherwise, 32 bytes
+	sigPrivKey       []byte       // is ALWAYS private property of struct, if privacy: 64 bytes, and otherwise, 32 bytes
 	cachedHash       *common.Hash // cached hash data of tx
-	cachedActualSize *uint64 // cached actualsize data for tx
+	cachedActualSize *uint64      // cached actualsize data for tx
 }
 
 func NewTransactionFromParams(params *TxPrivacyInitParams) (metadata.Transaction, error) {
@@ -431,7 +431,10 @@ func (tx TxBase) String() string {
 		record += metadataHash.String()
 		//Logger.log.Debugf("\n\n\n\n test metadata after hashing: %v\n", metadataHash.GetBytes())
 	}
-	record += string(tx.Info)
+
+	// TODO: To be uncomment
+	// record += string(tx.Info)
+
 	return record
 }
 
