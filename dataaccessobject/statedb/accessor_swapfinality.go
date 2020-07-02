@@ -25,3 +25,23 @@ func GetBlockMerkleNode(stateDB *StateDB, shardID, level byte, index uint64) (co
 	}
 	return node, nil
 }
+
+func StoreLatestSwapID(stateDB *StateDB, shardID byte, id uint64) error {
+	key := GenerateLatestSwapIDObjectKey(shardID)
+	if err := stateDB.SetStateObject(LatestSwapIDObjectType, key, id); err != nil {
+		return NewStatedbError(StoreLatestSwapIDError, err)
+	}
+	return nil
+}
+
+func GetLatestSwapID(stateDB *StateDB, shardID byte) (uint64, error) {
+	key := GenerateLatestSwapIDObjectKey(shardID)
+	id, has, err := stateDB.getLatestSwapID(key)
+	if err != nil {
+		return 0, NewStatedbError(GetLatestSwapIDError, err)
+	}
+	if !has {
+		return 0, NewStatedbError(GetLatestSwapIDError, fmt.Errorf("latest swap id not found for shardID = %v", shardID))
+	}
+	return id, nil
+}

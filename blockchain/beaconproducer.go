@@ -3,13 +3,14 @@ package blockchain
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"math/rand"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 
 	"github.com/incognitochain/incognito-chain/blockchain/btc"
 
@@ -625,11 +626,15 @@ func (beaconBestState *BeaconBestState) GenerateInstruction(
 		if err != nil {
 			Logger.log.Error(err)
 		}
+		swapID, err := statedb.GetLatestSwapID(beaconBestState.blockStateDB, byte(255))
+		if err != nil {
+			swapID = 0
+		}
 		if common.IndexOfUint64(newBeaconHeight/chainParamEpoch, blockchain.config.ChainParams.EpochBreakPointSwapNewKey) > -1 {
 			epoch := newBeaconHeight / chainParamEpoch
 			swapBeaconInstructions, _, beaconCommittee := CreateBeaconSwapActionForKeyListV2(blockchain.config.GenesisParams, beaconPendingValidatorStr, beaconCommitteeStr, beaconBestState.MinBeaconCommitteeSize, epoch)
 			instructions = append(instructions, swapBeaconInstructions)
-			beaconRootInst, _ := buildBeaconSwapConfirmInstruction(beaconCommittee, newBeaconHeight)
+			beaconRootInst, _ := buildBeaconSwapConfirmInstruction(beaconCommittee, newBeaconHeight, swapID+1)
 			instructions = append(instructions, beaconRootInst)
 		} else {
 			_, currentValidators, swappedValidator, beaconNextCommittee, err := SwapValidator(beaconPendingValidatorStr, beaconCommitteeStr, beaconBestState.MaxBeaconCommitteeSize, beaconBestState.MinBeaconCommitteeSize, blockchain.config.ChainParams.Offset, producersBlackList, blockchain.config.ChainParams.SwapOffset)
@@ -641,7 +646,7 @@ func (beaconBestState *BeaconBestState) GenerateInstruction(
 				swapBeaconInstructions = append(swapBeaconInstructions, string(badProducersWithPunishmentBytes))
 				instructions = append(instructions, swapBeaconInstructions)
 				// Generate instruction storing validators pubkey and send to bridge
-				beaconRootInst, _ := buildBeaconSwapConfirmInstruction(currentValidators, newBeaconHeight)
+				beaconRootInst, _ := buildBeaconSwapConfirmInstruction(currentValidators, newBeaconHeight, swapID+1)
 				instructions = append(instructions, beaconRootInst)
 			}
 		}

@@ -3,12 +3,13 @@ package blockchain
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"math/rand"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
+	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/incognitokey"
@@ -586,8 +587,12 @@ func (blockchain *BlockChain) generateInstruction(view *ShardBestState, shardID 
 		// Generate instruction storing merkle root of validators pubkey and send to beacon
 		bridgeID := byte(common.BridgeShardID)
 		if shardID == bridgeID {
+			swapID, err := statedb.GetLatestSwapID(view.blockStateDB, shardID)
+			if err != nil {
+				swapID = 0
+			}
 			blockHeight := view.ShardHeight + 1
-			bridgeSwapConfirmInst, err = buildBridgeSwapConfirmInstruction(shardCommittee, blockHeight)
+			bridgeSwapConfirmInst, err = buildBridgeSwapConfirmInstruction(shardCommittee, blockHeight, swapID+1)
 			if err != nil {
 				BLogger.log.Error(err)
 				return instructions, shardPendingValidator, shardCommittee, err

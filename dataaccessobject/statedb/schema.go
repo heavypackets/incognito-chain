@@ -41,6 +41,7 @@ var (
 	bridgeStatusPrefix                 = []byte("bri-status-")
 	burnPrefix                         = []byte("burn-")
 	blockMerklePrefix                  = []byte("blkmerkle-")
+	swapIDPrefix                       = []byte("swpid-")
 
 	// portal
 	portalFinaExchangeRatesStatePrefix            = []byte("portalfinalexchangeratesstate-")

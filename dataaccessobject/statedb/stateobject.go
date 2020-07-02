@@ -83,6 +83,8 @@ func newStateObjectWithValue(db *StateDB, objectType int, hash common.Hash, valu
 		return newRewardFeatureStateObjectWithValue(db, hash, value)
 	case BlockMerkleObjectType:
 		return newBlockMerkleObjectWithValue(db, hash, value)
+	case LatestSwapIDObjectType:
+		return newLatestSwapIDObjectWithValue(db, hash, value)
 	default:
 		panic("state object type not exist")
 	}

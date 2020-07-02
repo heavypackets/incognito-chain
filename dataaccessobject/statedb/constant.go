@@ -29,6 +29,7 @@ const (
 	BurningConfirmObjectType
 	TokenTransactionObjectType
 	BlockMerkleObjectType
+	LatestSwapIDObjectType
 
 	// portal
 	//final exchange rates

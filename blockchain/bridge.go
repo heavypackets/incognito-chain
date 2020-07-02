@@ -60,20 +60,32 @@ func decodeSwapConfirmInst(inst []string) ([]byte, error) {
 	shardID := byte(s)
 	height, _, errHeight := base58.Base58Check{}.Decode(inst[2])
 	numVals, _, errNumVals := base58.Base58Check{}.Decode(inst[3])
-	// Special case: instruction storing beacon/bridge's committee => decode and sign on that instead
-	// We need to decode and then submit the pubkeys to Ethereum because we can't decode it on smart contract
-	addrs, errAddrs := parseAndPadAddress(inst[4])
-	if err := common.CheckError(errMeta, errShard, errHeight, errNumVals, errAddrs); err != nil {
-		err = errors.Wrapf(err, "inst: %+v", inst)
-		BLogger.log.Error(err)
-		return nil, err
-	}
-
 	flatten := []byte{}
 	flatten = append(flatten, metaType)
 	flatten = append(flatten, shardID)
 	flatten = append(flatten, toBytes32BigEndian(height)...)
 	flatten = append(flatten, toBytes32BigEndian(numVals)...)
+
+	var swapID, addrs []byte
+	var errID, errAddrs error
+	if len(inst) <= 5 {
+		// Swap confirm inst v0: no swapID
+		addrs, errAddrs = parseAndPadAddress(inst[4])
+	} else {
+		// Swap confirm inst v1: with swapID
+		swapID, _, errID = base58.DecodeCheck(inst[4])
+		flatten = append(flatten, toBytes32BigEndian(swapID)...)
+		addrs, errAddrs = parseAndPadAddress(inst[5])
+	}
+
+	// Special case: instruction storing beacon/bridge's committee => decode and sign on that instead
+	// We need to decode and then submit the pubkeys to Ethereum because we can't decode it on smart contract
+	if err := common.CheckError(errMeta, errShard, errHeight, errNumVals, errAddrs, errID); err != nil {
+		err = errors.Wrapf(err, "inst: %+v", inst)
+		BLogger.log.Error(err)
+		return nil, err
+	}
+
 	flatten = append(flatten, addrs...)
 	return flatten, nil
 }
@@ -231,7 +243,7 @@ func parseAndConcatPubkeys(vals []string) ([]byte, error) {
 
 // buildSwapConfirmInstruction builds a confirm instruction for either beacon
 // or bridge committee swap
-func buildSwapConfirmInstruction(meta int, currentValidators []string, startHeight uint64) ([]string, error) {
+func buildSwapConfirmInstruction(meta int, currentValidators []string, startHeight uint64, swapID uint64) ([]string, error) {
 	comm, err := parseAndConcatPubkeys(currentValidators)
 	if err != nil {
 		return nil, err
@@ -243,26 +255,30 @@ func buildSwapConfirmInstruction(meta int, currentValidators []string, startHeig
 	// Save number of validators as bytes and parse on Ethereum
 	numVals := big.NewInt(int64(len(currentValidators)))
 
+	// Save the ID of this swap (previous ID + 1)
+	id := big.NewInt(int64(swapID))
+
 	bridgeID := byte(common.BridgeShardID)
 	return []string{
 		strconv.Itoa(meta),
 		strconv.Itoa(int(bridgeID)),
 		base58.Base58Check{}.Encode(height.Bytes(), 0x00),
 		base58.Base58Check{}.Encode(numVals.Bytes(), 0x00),
+		base58.Base58Check{}.Encode(id.Bytes(), 0x00),
 		base58.Base58Check{}.Encode(comm, 0x00),
 	}, nil
 }
 
 // buildBeaconSwapConfirmInstruction stores in an instruction the list of
 // new beacon validators and the block that they start signing on
-func buildBeaconSwapConfirmInstruction(currentValidators []string, blockHeight uint64) ([]string, error) {
-	BLogger.log.Infof("New beaconComm - startHeight: %d comm: %x", blockHeight+1, currentValidators)
-	return buildSwapConfirmInstruction(metadata.BeaconSwapConfirmMeta, currentValidators, blockHeight+1)
+func buildBeaconSwapConfirmInstruction(currentValidators []string, blockHeight, swapID uint64) ([]string, error) {
+	BLogger.log.Infof("New beaconComm - swapID: %d, startHeight: %d comm: %x", swapID, blockHeight+1, currentValidators)
+	return buildSwapConfirmInstruction(metadata.BeaconSwapConfirmMeta, currentValidators, blockHeight+1, swapID)
 }
 
 // buildBridgeSwapConfirmInstruction stores in an instruction the list of
 // new bridge validators and the block that they start signing on
-func buildBridgeSwapConfirmInstruction(currentValidators []string, blockHeight uint64) ([]string, error) {
-	BLogger.log.Infof("New bridgeComm - startHeight: %d comm: %x", blockHeight+1, currentValidators)
-	return buildSwapConfirmInstruction(metadata.BridgeSwapConfirmMeta, currentValidators, blockHeight+1)
+func buildBridgeSwapConfirmInstruction(currentValidators []string, blockHeight uint64, swapID uint64) ([]string, error) {
+	BLogger.log.Infof("New bridgeComm - swapID: %d startHeight: %d comm: %x", swapID, blockHeight+1, currentValidators)
+	return buildSwapConfirmInstruction(metadata.BridgeSwapConfirmMeta, currentValidators, blockHeight+1, swapID)
 }

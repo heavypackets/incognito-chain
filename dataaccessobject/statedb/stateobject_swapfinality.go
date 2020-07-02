@@ -141,3 +141,79 @@ func (c BlockMerkleObject) IsEmpty() bool {
 	temp := common.Hash{}
 	return reflect.DeepEqual(temp, c.blockHash)
 }
+
+type LatestSwapIDObject struct {
+	DefaultStateObject
+
+	id uint64
+}
+
+func newLatestSwapIDObject(db *StateDB, hash common.Hash) *LatestSwapIDObject {
+	return &LatestSwapIDObject{
+		DefaultStateObject: DefaultStateObject{
+			version:       defaultVersion,
+			db:            db,
+			publicKeyHash: hash,
+			objectType:    LatestSwapIDObjectType,
+			deleted:       false,
+		},
+		id: 0,
+	}
+}
+
+func newLatestSwapIDObjectWithValue(db *StateDB, key common.Hash, data interface{}) (*LatestSwapIDObject, error) {
+	var newLatestSwapID uint64
+	if id, ok := data.(uint64); ok {
+		newLatestSwapID = id
+	} else if dataBytes, ok := data.([]byte); ok {
+		err := json.Unmarshal(dataBytes, &newLatestSwapID)
+		if err != nil {
+			return nil, fmt.Errorf("%+v, unmarshal err %+v", ErrInvalidLatestSwapIDType, err)
+		}
+	} else {
+		return nil, fmt.Errorf("%+v, got type %+v", ErrInvalidLatestSwapIDType, reflect.TypeOf(data))
+	}
+	return &LatestSwapIDObject{
+		DefaultStateObject: DefaultStateObject{
+			version:       defaultVersion,
+			db:            db,
+			publicKeyHash: key,
+			objectType:    LatestSwapIDObjectType,
+			deleted:       false,
+		},
+		id: newLatestSwapID,
+	}, nil
+}
+
+func GenerateLatestSwapIDObjectKey(shardID byte) common.Hash {
+	data := append(swapIDPrefix, []byte{shardID}...)
+	h := common.HashH(data)
+	return h
+}
+
+func (c LatestSwapIDObject) GetValue() interface{} {
+	return c.id
+}
+
+func (c LatestSwapIDObject) GetValueBytes() []byte {
+	data := c.GetValue()
+	value, err := json.Marshal(data)
+	if err != nil {
+		panic("failed to marshal all shard committee")
+	}
+	return value
+}
+
+func (c *LatestSwapIDObject) SetValue(data interface{}) error {
+	id, ok := data.(uint64)
+	if !ok {
+		return fmt.Errorf("%+v, got type %+v", ErrInvalidLatestSwapIDType, reflect.TypeOf(data))
+	}
+	c.id = id
+	return nil
+}
+
+// value is either default or nil
+func (c LatestSwapIDObject) IsEmpty() bool {
+	return c.id == 0
+}

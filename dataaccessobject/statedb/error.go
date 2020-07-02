@@ -42,6 +42,7 @@ const (
 	ErrInvalidPortalLockedCollateralStateType = "invalid portal locked collateral state type"
 	ErrInvalidRewardFeatureStateType          = "invalid feature reward state type"
 	ErrInvalidBlockMerkleHashType             = "invalid block merkle hash type"
+	ErrInvalidLatestSwapIDType                = "invalid latest swap id type"
 )
 const (
 	InvalidByteArrayTypeError = iota
@@ -205,6 +206,8 @@ const (
 	// block merkle tree
 	StoreBlockMerkleError
 	GetBlockMerkleError
+	StoreLatestSwapIDError
+	GetLatestSwapIDError
 )
 
 var ErrCodeMessage = map[int]struct {
@@ -332,8 +335,10 @@ var ErrCodeMessage = map[int]struct {
 	GetAllRewardFeatureError:             {-15002, "Get all reward feature state error"},
 	GetRewardFeatureAmountByTokenIDError: {-15003, "Get reward feature amount by tokenID error"},
 
-	StoreBlockMerkleError: {-16000, "Store block merkle node error"},
-	GetBlockMerkleError:   {-16001, "Get block merkle node error"},
+	StoreBlockMerkleError:  {-16000, "Store block merkle node error"},
+	GetBlockMerkleError:    {-16001, "Get block merkle node error"},
+	StoreLatestSwapIDError: {-16002, "Store latest swap id error"},
+	GetLatestSwapIDError:   {-16003, "Get latest swap id error"},
 }
 
 type StatedbError struct {
