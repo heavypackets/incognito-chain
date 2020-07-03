@@ -133,10 +133,10 @@ func (blockchain *BlockChain) InsertShardBlock(shardBlock *ShardBlock, shouldVal
 		return NewBlockChainError(InsertShardBlockError, fmt.Errorf("Not expected height, current view height %+v, incomming block height %+v", curView.ShardHeight, blockHeight))
 	}
 
-	//beaconHeight := shardBlock.Header.BeaconHeight
-	//if err := blockchain.verifyTransactionFromNewBlock(shardID, shardBlock.Body.Transactions, int64(beaconHeight), curView); err != nil {
-	//	return NewBlockChainError(TransactionFromNewBlockError, err)
-	//}
+	beaconHeight := shardBlock.Header.BeaconHeight
+	if err := blockchain.verifyTransactionFromNewBlock(shardID, shardBlock.Body.Transactions, int64(beaconHeight), curView); err != nil {
+		return NewBlockChainError(TransactionFromNewBlockError, err)
+	}
 
 	// fetch beacon blocks
 	previousBeaconHeight := curView.BeaconHeight
@@ -178,7 +178,7 @@ func (blockchain *BlockChain) InsertShardBlock(shardBlock *ShardBlock, shouldVal
 
 	//========Post verification: verify new beaconstate with corresponding block
 	if shouldValidate {
-		Logger.log.Debugf("SHARD %+v | Verify Post Processing, block height %+v with hash %+v", shardBlock.Header.ShardID, shardBlock.Header.Height, blockHash)
+		Logger.log.Infof("SHARD %+v | Verify Post Processing, block height %+v with hash %+v", shardBlock.Header.ShardID, shardBlock.Header.Height, blockHash)
 		if err := newBestState.verifyPostProcessingShardBlock(shardBlock, shardID); err != nil {
 			fmt.Println("Instructions", shardBlock.Body.Instructions)
 			return err
