@@ -1346,7 +1346,8 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 	beaconBlock *BeaconBlock,
 	committeeChange *committeeChange,
 ) error {
-	startTimeProcessStoreBeaconBlock := time.Now()
+	time1 := time.Now()
+	timeX := time.Now()
 	Logger.log.Debugf("BEACON | Process Store Beacon Block Height %+v with hash %+v", beaconBlock.Header.Height, beaconBlock.Header.Hash())
 	blockHash := beaconBlock.Header.Hash()
 	blockHeight := beaconBlock.Header.Height
@@ -1419,7 +1420,8 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 	if err != nil {
 		return err
 	}
-
+	time2 := time.Since(time1).Seconds()
+	time1 = time.Now()
 	blockchain.processForSlashing(newBestState.slashStateDB, beaconBlock)
 
 	// Remove shard reward request of old epoch
@@ -1431,17 +1433,22 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 	if err != nil {
 		return NewBlockChainError(UpdateDatabaseWithBlockRewardInfoError, err)
 	}
+	time3 := time.Since(time1).Seconds()
+	time1 = time.Now()
 	// execute, store
 	err = blockchain.processBridgeInstructions(newBestState.featureStateDB, beaconBlock)
 	if err != nil {
 		return NewBlockChainError(ProcessBridgeInstructionError, err)
 	}
+	time4 := time.Since(time1).Seconds()
+	time1 = time.Now()
 	// execute, store PDE instruction
 	err = blockchain.processPDEInstructions(newBestState.featureStateDB, beaconBlock)
 	if err != nil {
 		return NewBlockChainError(ProcessPDEInstructionError, err)
 	}
-
+	time5 := time.Since(time1).Seconds()
+	time1 = time.Now()
 	// execute, store Portal Instruction
 	//if (blockchain.config.ChainParams.Net == Mainnet) || (blockchain.config.ChainParams.Net == Testnet && beaconBlock.Header.Height > 1500000) {
 	err = blockchain.processPortalInstructions(newBestState.featureStateDB, beaconBlock)
@@ -1449,13 +1456,15 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 		return NewBlockChainError(ProcessPortalInstructionError, err)
 	}
 	//}
-
+	time6 := time.Since(time1).Seconds()
+	time1 = time.Now()
 	// execute, store Ralaying Instruction
 	err = blockchain.processRelayingInstructions(beaconBlock)
 	if err != nil {
 		return NewBlockChainError(ProcessPortalRelayingError, err)
 	}
-
+	time7 := time.Since(time1).Seconds()
+	time1 = time.Now()
 	//store beacon block hash by index to consensus state db => mark this block hash is for this view at this height
 	if err := statedb.StoreBeaconBlockHashByIndex(newBestState.consensusStateDB, blockHeight, blockHash); err != nil {
 		return err
@@ -1503,7 +1512,8 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 	newBestState.featureStateDB.ClearObjects()
 	newBestState.slashStateDB.ClearObjects()
 	//statedb===========================END
-
+	time8 := time.Since(time1).Seconds()
+	time1 = time.Now()
 	batch := blockchain.GetBeaconChainDatabase().NewBatch()
 	//State Root Hash
 	bRH := BeaconRootHash{
@@ -1520,7 +1530,8 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 	if err := rawdbv2.StoreBeaconBlock(batch, blockHeight, blockHash, beaconBlock); err != nil {
 		return NewBlockChainError(StoreBeaconBlockError, err)
 	}
-
+	time9 := time.Since(time1).Seconds()
+	time1 = time.Now()
 	//fmt.Printf("debug AddView %s %+v\n", newBestState.Hash().String(), newBestState.BestBlock)
 	// finalView := blockchain.BeaconChain.GetFinalView()
 	err = blockchain.BackupBeaconViews(batch)
@@ -1530,8 +1541,13 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 	if err := batch.Write(); err != nil {
 		return NewBlockChainError(StoreBeaconBlockError, err)
 	}
-	beaconStoreBlockTimer.UpdateSince(startTimeProcessStoreBeaconBlock)
-
+	time10 := time.Since(time1).Seconds()
+	time1 = time.Now()
+	if time.Since(timeX).Seconds() > 0.05 {
+		fmt.Println("=============================")
+		fmt.Println(time2, time3, time4, time5, time6, time7, time8, time9, time10)
+		fmt.Println("=============================")
+	}
 	//backup
 	//if (newBestState.BeaconHeight+1)%blockchain.config.ChainParams.Epoch == 0 {
 	//	blockchain.GetBeaconChainDatabase().Close()
