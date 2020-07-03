@@ -140,8 +140,7 @@ func getShardAndBeaconBlocks(
 type block interface {
 	common.BlockInterface // to be able to get ValidationData from ConsensusEngine
 
-	BlockMerkleRoot() []byte
-	ProposeTime() int64
+	Instructions() [][]string
 	InstructionMerkleRoot() []byte
 	MetaHash() []byte
 	Sig(ce ConsensusEngine) ([][]byte, []int, error)
@@ -316,12 +315,8 @@ func (bb *beaconBlock) Sig(ce ConsensusEngine) ([][]byte, []int, error) {
 	return ce.ExtractBridgeValidationData(bb)
 }
 
-func (bb *beaconBlock) ProposeTime() int64 {
-	return bb.Header.ProposeTime
-}
-
-func (bb *beaconBlock) BlockMerkleRoot() []byte {
-	return bb.Header.BlockMerkleRoot[:]
+func (bb *beaconBlock) Instructions() [][]string {
+	return bb.Body.Instructions
 }
 
 type shardBlock struct {
@@ -341,12 +336,8 @@ func (sb *shardBlock) Sig(ce ConsensusEngine) ([][]byte, []int, error) {
 	return ce.ExtractBridgeValidationData(sb)
 }
 
-func (sb *shardBlock) ProposeTime() int64 {
-	return sb.Header.ProposeTime
-}
-
-func (sb *shardBlock) BlockMerkleRoot() []byte {
-	return sb.Header.BlockMerkleRoot[:]
+func (sb *shardBlock) Instructions() [][]string {
+	return sb.Body.Instructions
 }
 
 // findBeaconBlockWithInst finds a beacon block with a specific instruction and the instruction's index; nil if not found

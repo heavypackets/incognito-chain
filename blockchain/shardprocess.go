@@ -395,21 +395,6 @@ func (blockchain *BlockChain) verifyPreProcessingShardBlock(curView *ShardBestSt
 	if !bytes.Equal(root, shardBlock.Header.InstructionMerkleRoot[:]) {
 		return NewBlockChainError(InstructionMerkleRootError, fmt.Errorf("Expect transaction merkle root to be %+v but get %+v", shardBlock.Header.InstructionMerkleRoot, string(root)))
 	}
-	if shardID == common.BridgeShardID {
-		// Check if BlockMerkleRoot is the root of merkle tree containing all blocks
-		tree, err := loadIncrementalMerkle(
-			curView.blockStateDB,
-			shardID,
-			curView.ShardHeight,
-		)
-		if err != nil {
-			return NewBlockChainError(BlockMerkleRootError, fmt.Errorf("Fail to load block merkle tree: %+v", err))
-		}
-		tree.Add([][]byte{shardBlock.Header.PreviousBlockHash[:]})
-		if root := tree.GetRoot(); !bytes.Equal(root[:], shardBlock.Header.BlockMerkleRoot[:]) {
-			return NewBlockChainError(BlockMerkleRootError, fmt.Errorf("Expect block merkle root to be %s but get %s", common.BytesToHash(root).String(), shardBlock.Header.BlockMerkleRoot.String()))
-		}
-	}
 
 	//Get beacon hash by height in db
 	//If hash not found then fail to verify
@@ -489,7 +474,7 @@ func (blockchain *BlockChain) verifyPreProcessingShardBlockForSigning(curView *S
 	if curView.BeaconHeight == shardBlock.Header.BeaconHeight {
 		isOldBeaconHeight = true
 	}
-	instructions, shardPendingValidator, shardCommittee, err = blockchain.generateInstruction(curView, shardID, shardBlock.Header.BeaconHeight, isOldBeaconHeight, beaconBlocks, shardPendingValidator, shardCommittee)
+	instructions, shardPendingValidator, shardCommittee, err = blockchain.generateInstruction(curView, shardID, shardBlock.Header.BeaconHeight, isOldBeaconHeight, beaconBlocks, shardPendingValidator, shardCommittee, shardBlock.Header.ProposeTime)
 	if err != nil {
 		return NewBlockChainError(GenerateInstructionError, err)
 	}

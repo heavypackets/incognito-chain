@@ -8,19 +8,21 @@ import (
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
+	"github.com/incognitochain/incognito-chain/metadata"
 	"github.com/incognitochain/incognito-chain/rpcserver/jsonresult"
 	"github.com/incognitochain/incognito-chain/rpcserver/rpcservice"
 	"github.com/pkg/errors"
 )
 
 type finalityProof struct {
-	proposeTime uint64
+	inst           string
+	instPath       []string
+	instPathIsLeft []bool
 
-	blkMerkleRoot string
-	instRoot      string
-	blkData       string
-	signerSigs    []string
-	sigIdxs       []int
+	instRoot   string
+	blkData    string
+	signerSigs []string
+	sigIdxs    []int
 }
 
 func (httpServer *HttpServer) handleGetFinalityProof(params interface{}, closeChan <-chan struct{}) (interface{}, *rpcservice.RPCError) {
@@ -87,10 +89,29 @@ func getSingleShardBlockByHeight(bc *blockchain.BlockChain, height uint64, shard
 		block = b
 		break
 	}
+
+	insts, err := extractInstsFromShardBlock(block, bc)
+	if err != nil {
+		return nil, err
+	}
+	block.Body.Instructions = insts
 	return block, nil
 }
 
 func buildFinalityProofForBlock(blk block, ce ConsensusEngine) (*finalityProof, error) {
+	// Build merkle proof for instruction
+	insts := blk.Instructions()
+	instID, err := findBlockMerkleRootInst(insts)
+	if err != nil {
+		return nil, err
+	}
+	instProof := buildInstProof(insts, instID)
+	decodedInst, err := blockchain.DecodeInstruction(insts[instID])
+	if err != nil {
+		return nil, err
+	}
+	inst := hex.EncodeToString(decodedInst)
+
 	// Get sig data
 	bSigs, sigIdxs, err := blk.Sig(ce)
 	if err != nil {
@@ -101,24 +122,36 @@ func buildFinalityProofForBlock(blk block, ce ConsensusEngine) (*finalityProof, 
 		sigs = append(sigs, hex.EncodeToString(s))
 	}
 	proof := &finalityProof{
-		proposeTime:   uint64(blk.ProposeTime()),
-		blkMerkleRoot: hex.EncodeToString(blk.BlockMerkleRoot()),
-		instRoot:      hex.EncodeToString(blk.InstructionMerkleRoot()),
-		blkData:       hex.EncodeToString(blk.MetaHash()),
-		signerSigs:    sigs,
-		sigIdxs:       sigIdxs,
+		inst:           inst,
+		instPath:       instProof.getPath(),
+		instPathIsLeft: instProof.left,
+
+		instRoot:   hex.EncodeToString(blk.InstructionMerkleRoot()),
+		blkData:    hex.EncodeToString(blk.MetaHash()),
+		signerSigs: sigs,
+		sigIdxs:    sigIdxs,
 	}
 	return proof, nil
 }
 
+func findBlockMerkleRootInst(insts [][]string) (int, error) {
+	_, id := findCommSwapInst(insts, metadata.BlockMerkleRootMeta)
+	if id < 0 {
+		return -1, fmt.Errorf("BlockMerkleRootMeta not found")
+	}
+	return id, nil
+}
+
 func buildFinalityProofResult(proof1, proof2 *finalityProof) jsonresult.GetFinalityProof {
 	return jsonresult.GetFinalityProof{
-		BlkData:       [2]string{proof1.blkData, proof2.blkData},
-		InstRoot:      [2]string{proof1.instRoot, proof2.instRoot},
-		BlkMerkleRoot: proof2.blkMerkleRoot,
-		ProposeTime:   [2]uint64{proof1.proposeTime, proof2.proposeTime},
-		Sigs:          [2][]string{proof1.signerSigs, proof2.signerSigs},
-		SigIdxs:       [2][]int{proof1.sigIdxs, proof2.sigIdxs},
+		Instructions:    [2]string{proof1.inst, proof2.inst},
+		InstPaths:       [2][]string{proof1.instPath, proof2.instPath},
+		InstPathIsLefts: [2][]bool{proof1.instPathIsLeft, proof2.instPathIsLeft},
+
+		BlkData:  [2]string{proof1.blkData, proof2.blkData},
+		InstRoot: [2]string{proof1.instRoot, proof2.instRoot},
+		Sigs:     [2][]string{proof1.signerSigs, proof2.signerSigs},
+		SigIdxs:  [2][]int{proof1.sigIdxs, proof2.sigIdxs},
 	}
 }
 

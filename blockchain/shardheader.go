@@ -38,9 +38,8 @@ type ShardHeader struct {
 	// This obsoletes InstructionMerkleRoot but for simplicity, we keep it for now
 
 	//for version 2
-	Proposer        string
-	ProposeTime     int64
-	BlockMerkleRoot common.Hash `json:"BlockMerkleRoot"` // Merkle root of all blocks in the chain to relay to Ethereum
+	Proposer    string
+	ProposeTime int64
 }
 
 func (shardHeader *ShardHeader) String() string {
@@ -93,11 +92,6 @@ func (shardHeader *ShardHeader) Hash() common.Hash {
 	// Block header of bridge uses Keccak256 as a hash func to check on Ethereum when relaying blocks
 	blkMetaHash := shardHeader.MetaHash()
 	blkInstHash := shardHeader.InstructionMerkleRoot
-	blkMerkleHash := shardHeader.BlockMerkleRoot
 	combined := append(blkMetaHash[:], blkInstHash[:]...)
-	if shardHeader.Version == 2 {
-		combined = append(combined, blkMerkleHash[:]...)
-		combined = append(combined, common.Uint64ToBytes(uint64(shardHeader.ProposeTime))...)
-	}
 	return common.Keccak256(combined)
 }

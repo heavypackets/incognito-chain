@@ -32,6 +32,7 @@ const (
 	BeaconSwapConfirmMeta = 70
 	BridgeSwapConfirmMeta = 71
 	BurningConfirmMeta    = 72
+	BlockMerkleRootMeta   = 73
 
 	// pde
 	PDEContributionMeta         = 90

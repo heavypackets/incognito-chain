@@ -141,7 +141,7 @@ func (blockchain *BlockChain) NewBlockShard(curView *ShardBestState, version int
 	// process instruction from beacon block
 	shardPendingValidator, _, _ = blockchain.processInstructionFromBeacon(curView, beaconBlocks, shardID, newCommitteeChange())
 	// Create Instruction
-	instructions, _, _, err = blockchain.generateInstruction(curView, shardID, beaconHeight, isOldBeaconHeight, beaconBlocks, shardPendingValidator, currentCommitteePubKeys)
+	instructions, _, _, err = blockchain.generateInstruction(curView, shardID, beaconHeight, isOldBeaconHeight, beaconBlocks, shardPendingValidator, currentCommitteePubKeys, start.Unix())
 	if err != nil {
 		return nil, NewBlockChainError(GenerateInstructionError, err)
 	}
@@ -537,7 +537,7 @@ func (blockchain *BlockChain) processInstructionFromBeacon(curView *ShardBestSta
 //	#2: shardpendingvalidator
 //	#3: shardcommittee
 //	#4: error
-func (blockchain *BlockChain) generateInstruction(view *ShardBestState, shardID byte, beaconHeight uint64, isOldBeaconHeight bool, beaconBlocks []*BeaconBlock, shardPendingValidator []string, shardCommittee []string) ([][]string, []string, []string, error) {
+func (blockchain *BlockChain) generateInstruction(view *ShardBestState, shardID byte, beaconHeight uint64, isOldBeaconHeight bool, beaconBlocks []*BeaconBlock, shardPendingValidator []string, shardCommittee []string, proposeTime int64) ([][]string, []string, []string, error) {
 	var (
 		instructions          = [][]string{}
 		bridgeSwapConfirmInst = []string{}
@@ -623,6 +623,22 @@ func (blockchain *BlockChain) generateInstruction(view *ShardBestState, shardID 
 			instructions = append(instructions, confirmInsts...)
 		}
 	}
+
+	// Add instruction storing merkle root of all blocks in this view
+	if shardID == bridgeID {
+		blkRootInst, err := buildBlockMerkleRootInstruction(
+			view.blockStateDB,
+			shardID,
+			view.ShardHeight,
+			view.BestBlockHash,
+			proposeTime,
+		)
+		if err != nil {
+			return instructions, shardPendingValidator, shardCommittee, err
+		}
+		instructions = append(instructions, blkRootInst)
+	}
+
 	return instructions, shardPendingValidator, shardCommittee, nil
 }
 
