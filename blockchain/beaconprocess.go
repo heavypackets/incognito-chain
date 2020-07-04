@@ -359,19 +359,6 @@ func (blockchain *BlockChain) verifyPreProcessingBeaconBlock(curView *BeaconBest
 	if !bytes.Equal(root, beaconBlock.Header.InstructionMerkleRoot[:]) {
 		return NewBlockChainError(FlattenAndConvertStringInstError, fmt.Errorf("Expect Instruction Merkle Root in Beacon Block Header to be %+v but get %+v", string(beaconBlock.Header.InstructionMerkleRoot[:]), string(root)))
 	}
-	// Check if BlockMerkleRoot is the root of merkle tree containing all blocks
-	tree, err := loadIncrementalMerkle(
-		curView.blockStateDB,
-		byte(255),
-		curView.BeaconHeight,
-	)
-	if err != nil {
-		return NewBlockChainError(BlockMerkleRootError, fmt.Errorf("Fail to load block merkle tree: %+v", err))
-	}
-	tree.Add([][]byte{beaconBlock.Header.PreviousBlockHash[:]})
-	if root := tree.GetRoot(); !bytes.Equal(root[:], beaconBlock.Header.BlockMerkleRoot[:]) {
-		return NewBlockChainError(BlockMerkleRootError, fmt.Errorf("Expect block merkle root to be %s but get %s", common.BytesToHash(root).String(), beaconBlock.Header.BlockMerkleRoot.String()))
-	}
 	// if pool does not have one of needed block, fail to verify
 	beaconVerifyPreprocesingTimer.UpdateSince(startTimeVerifyPreProcessingBeaconBlock)
 	if isPreSign {
@@ -492,7 +479,7 @@ func (blockchain *BlockChain) verifyPreProcessingBeaconBlockForSigning(curView *
 		stakeInstructions, swapInstructions, stopAutoStakingInstructions,
 		curView.CandidateShardWaitingForCurrentRandom,
 		bridgeInstructions, acceptedBlockRewardInstructions,
-		blockchain.config.ChainParams.Epoch, blockchain.config.ChainParams.RandomTime, blockchain)
+		blockchain.config.ChainParams.Epoch, blockchain.config.ChainParams.RandomTime, blockchain, beaconBlock.Header.ProposeTime)
 	if err != nil {
 		return err
 	}

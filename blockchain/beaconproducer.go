@@ -110,6 +110,7 @@ func (blockchain *BlockChain) NewBlockBeacon(curView *BeaconBestState, version i
 		beaconBlock.Header.Height, stakeInstructions, swapInstructions, stopAutoStakingInstructions,
 		beaconBestState.CandidateShardWaitingForCurrentRandom, bridgeInstructions, acceptedRewardInstructions, blockchain.config.ChainParams.Epoch,
 		blockchain.config.ChainParams.RandomTime, blockchain,
+		startTime,
 	)
 	if err != nil {
 		return nil, err
@@ -587,6 +588,7 @@ func (beaconBestState *BeaconBestState) GenerateInstruction(
 	chainParamEpoch uint64,
 	randomTime uint64,
 	blockchain *BlockChain,
+	proposeTime int64,
 ) ([][]string, error) {
 	instructions := [][]string{}
 	instructions = append(instructions, bridgeInstructions...)
@@ -727,6 +729,20 @@ func (beaconBestState *BeaconBestState) GenerateInstruction(
 			}
 		}
 	}
+
+	// Add instruction storing merkle root of all blocks in this view
+	blkRootInst, err := buildBlockMerkleRootInstruction(
+		beaconBestState.blockStateDB,
+		byte(255),
+		beaconBestState.BeaconHeight,
+		beaconBestState.BestBlockHash,
+		proposeTime,
+	)
+	if err != nil {
+		return [][]string{}, err
+	}
+	instructions = append(instructions, blkRootInst)
+
 	return instructions, nil
 }
 

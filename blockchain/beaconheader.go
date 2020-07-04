@@ -28,9 +28,8 @@ type BeaconHeader struct {
 	ProducerPubKeyStr               string      `json:"ProducerPubKeyStr"`
 
 	//for version 2
-	Proposer        string      `json:"Proposer"`
-	ProposeTime     int64       `json:"ProposeTime"`
-	BlockMerkleRoot common.Hash `json:"BlockMerkleRoot"` // Merkle root of all blocks in the chain to relay to Ethereum
+	Proposer    string `json:"Proposer"`
+	ProposeTime int64  `json:"ProposeTime"`
 }
 
 func (beaconHeader *BeaconHeader) toString() string {
@@ -66,8 +65,5 @@ func (beaconBlock *BeaconHeader) Hash() common.Hash {
 	blkMetaHash := beaconBlock.MetaHash()
 	blkInstHash := beaconBlock.InstructionMerkleRoot
 	combined := append(blkMetaHash[:], blkInstHash[:]...)
-	if beaconBlock.Version == 2 {
-		combined = append(combined, common.Uint64ToBytes(uint64(beaconBlock.ProposeTime))...)
-	}
 	return common.Keccak256(combined)
 }
