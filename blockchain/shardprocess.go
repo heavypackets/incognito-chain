@@ -433,6 +433,10 @@ func (blockchain *BlockChain) verifyPreProcessingShardBlock(curView *ShardBestSt
 	if err != nil {
 		return NewBlockChainError(ResponsedTransactionWithMetadataError, err)
 	}
+	err = blockchain.ValidateResponseTransactionFromBeaconInstructions(curView, shardBlock, beaconBlocks, shardID)
+	if err != nil {
+		return NewBlockChainError(ResponsedTransactionWithMetadataError, err)
+	}
 	shardVerifyPreprocesingTimer.UpdateSince(startTimeVerifyPreProcessingShardBlock)
 	// Get cross shard shardBlock from pool
 	if isPreSign {
@@ -633,7 +637,7 @@ func (oldBestState *ShardBestState) updateShardBestState(blockchain *BlockChain,
 		return nil, err
 	}
 	for stakePublicKey, txHash := range stakingTx {
-		shardBestState.StakingTx[stakePublicKey] = txHash
+		shardBestState.StakingTx.Set(stakePublicKey, txHash)
 	}
 	if common.IndexOfUint64(shardBlock.Header.BeaconHeight/blockchain.config.ChainParams.Epoch, blockchain.config.ChainParams.EpochBreakPointSwapNewKey) > -1 {
 		err = shardBestState.processShardBlockInstructionForKeyListV2(blockchain, shardBlock, committeeChange)
@@ -681,7 +685,7 @@ func (shardBestState *ShardBestState) initShardBestState(blockchain *BlockChain,
 	}
 	shardBestState.ShardPendingValidator = append(shardBestState.ShardPendingValidator, shardPendingValidatorStr...)
 	for stakePublicKey, txHash := range stakingTx {
-		shardBestState.StakingTx[stakePublicKey] = txHash
+		shardBestState.StakingTx.Set(stakePublicKey, txHash)
 	}
 	err = shardBestState.processShardBlockInstruction(blockchain, genesisShardBlock, newCommitteeChange())
 	if err != nil {
@@ -765,9 +769,9 @@ func (shardBestState *ShardBestState) processShardBlockInstruction(blockchain *B
 				swapedCommittees = strings.Split(l[2], ",")
 			}
 			for _, v := range swapedCommittees {
-				if txId, ok := shardBestState.StakingTx[v]; ok {
+				if txId, ok := shardBestState.StakingTx.data[v]; ok {
 					if checkReturnStakingTxExistence(txId, shardBlock) {
-						delete(shardBestState.StakingTx, v)
+						shardBestState.StakingTx.Remove(v)
 					}
 				}
 			}
@@ -896,6 +900,7 @@ func (shardBestState *ShardBestState) verifyPostProcessingShardBlock(shardBlock 
 	if hash, isOk := verifyHashFromStringArray(shardPendingValidatorStr, shardBlock.Header.PendingValidatorRoot); !isOk {
 		return NewBlockChainError(ShardPendingValidatorRootHashError, fmt.Errorf("Expect shard pending validator root hash to be %+v but get %+v", shardBlock.Header.PendingValidatorRoot, hash))
 	}
+
 	if hash, isOk := verifyHashFromMapStringString(shardBestState.StakingTx, shardBlock.Header.StakingTxRoot); !isOk {
 		return NewBlockChainError(ShardPendingValidatorRootHashError, fmt.Errorf("Expect shard staking root hash to be %+v but get %+v", shardBlock.Header.StakingTxRoot, hash))
 	}
