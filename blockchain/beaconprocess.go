@@ -195,7 +195,6 @@ func (blockchain *BlockChain) InsertBeaconBlock(beaconBlock *BeaconBlock, should
 	if err := blockchain.processStoreBeaconBlock(newBestState, beaconBlock, committeeChange); err != nil {
 		return err
 	}
-	blockchain.BeaconChain.multiView.AddView(newBestState)
 
 	// go metrics.AnalyzeTimeSeriesMetricDataWithTime(map[string]interface{}{
 	// 	metrics.Measurement:      metrics.NumOfBlockInsertToChain,
@@ -1531,8 +1530,9 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 	}
 	time9 := time.Since(time1).Seconds()
 	time1 = time.Now()
-	//fmt.Printf("debug AddView %s %+v\n", newBestState.Hash().String(), newBestState.BestBlock)
-	// finalView := blockchain.BeaconChain.GetFinalView()
+
+	blockchain.BeaconChain.multiView.AddView(newBestState)
+
 	err = blockchain.BackupBeaconViews(batch)
 	if err != nil {
 		panic("Backup shard view error")

@@ -638,7 +638,12 @@ func (oldBestState *ShardBestState) updateShardBestState(blockchain *BlockChain,
 	}
 	for stakePublicKey, txHash := range stakingTx {
 		shardBestState.StakingTx.Set(stakePublicKey, txHash)
+		if err := statedb.StoreStakerInfoAtShardDB(shardBestState.consensusStateDB, stakePublicKey, txHash); err != nil {
+			Logger.log.Error(stakePublicKey, txHash, err)
+			return nil, errors.New("Cannot store staker info")
+		}
 	}
+
 	if common.IndexOfUint64(shardBlock.Header.BeaconHeight/blockchain.config.ChainParams.Epoch, blockchain.config.ChainParams.EpochBreakPointSwapNewKey) > -1 {
 		err = shardBestState.processShardBlockInstructionForKeyListV2(blockchain, shardBlock, committeeChange)
 	} else {
@@ -686,6 +691,9 @@ func (shardBestState *ShardBestState) initShardBestState(blockchain *BlockChain,
 	shardBestState.ShardPendingValidator = append(shardBestState.ShardPendingValidator, shardPendingValidatorStr...)
 	for stakePublicKey, txHash := range stakingTx {
 		shardBestState.StakingTx.Set(stakePublicKey, txHash)
+		if err := statedb.StoreStakerInfoAtShardDB(shardBestState.consensusStateDB, stakePublicKey, txHash); err != nil {
+			return err
+		}
 	}
 	err = shardBestState.processShardBlockInstruction(blockchain, genesisShardBlock, newCommitteeChange())
 	if err != nil {
@@ -768,13 +776,14 @@ func (shardBestState *ShardBestState) processShardBlockInstruction(blockchain *B
 			if len(l[2]) != 0 && l[2] != "" {
 				swapedCommittees = strings.Split(l[2], ",")
 			}
-			for _, v := range swapedCommittees {
-				if txId, ok := shardBestState.StakingTx.data[v]; ok {
-					if checkReturnStakingTxExistence(txId, shardBlock) {
-						shardBestState.StakingTx.Remove(v)
-					}
-				}
-			}
+			//This code never run
+			//for _, v := range swapedCommittees {
+			//	if txId, ok := shardBestState.StakingTx.data[v]; ok {
+			//		if checkReturnStakingTxExistence(txId, shardBlock) {
+			//			shardBestState.StakingTx.Remove(v)
+			//		}
+			//	}
+			//}
 			if !reflect.DeepEqual(swapedCommittees, shardSwappedCommittees) {
 				return NewBlockChainError(SwapValidatorError, fmt.Errorf("Expect swapped committees to be %+v but get %+v", swapedCommittees, shardSwappedCommittees))
 			}
