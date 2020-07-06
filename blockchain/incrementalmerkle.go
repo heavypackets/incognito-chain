@@ -37,15 +37,15 @@ func (tree *IncrementalMerkleTree) Add(data [][]byte) {
 	for k, d := range data {
 		// Get hash of the leaf of new node
 		pos := tree.length + uint64(k)
-		hash := common.HashLR(tree.hasher, pos, d)
+		hash := tree.hasher(d)
 		h := hash[:]
 
 		added := false // If it stays false, the tree height grew by 1
 		for i, sibling := range tree.nodes {
 			pos /= 2
 			if sibling != nil {
-				h = common.HashLR(tree.hasher, pos, sibling, h) // Exist, must be left sibling
-				tree.nodes[i] = nil                             // Reset the node at this height
+				h = tree.hasher(sibling, h) // Exist, must be left sibling
+				tree.nodes[i] = nil         // Reset the node at this height
 			} else {
 				tree.nodes[i] = h // Not exist, save the new node at this height
 				added = true
@@ -67,7 +67,7 @@ func (tree *IncrementalMerkleTree) SimulateAdd(data []byte) ([][]byte, []uint64,
 	fmt.Printf("[db] SimulateAdd: tree length %d, tree.nodes %d len(data) %d\n", tree.length, len(tree.nodes), len(data))
 	// Get hash of the leaf of new node
 	id := tree.length // Index of the adding leaf
-	h := common.HashLR(tree.hasher, id, data)
+	h := tree.hasher(data)
 
 	updatedNodes := [][]byte{}
 	updatedIdxs := []uint64{}
@@ -78,7 +78,7 @@ func (tree *IncrementalMerkleTree) SimulateAdd(data []byte) ([][]byte, []uint64,
 		id = id / 2 // Parent's index
 
 		if sibling != nil {
-			h = common.HashLR(tree.hasher, id, sibling, h) // Exist, must be left sibling
+			h = tree.hasher(sibling, h) // Exist, must be left sibling
 		} else {
 			added = true // Not exist, save the new node at this height
 			break
@@ -133,7 +133,7 @@ func (tree *IncrementalMerkleTree) GetPathToRoot() [][]byte {
 	// Since there's still some nodes left at higher levels,
 	// this subtree must be the left subtree
 	id := (tree.length - 1) / 2
-	root = common.HashLR(tree.hasher, id, root, root) // Duplicate and get hash of parent
+	root = tree.hasher(root, root) // Duplicate and get hash of parent
 	paths[k+1] = root
 
 	// Go up the tree and calculate the root of the parent node
@@ -142,7 +142,7 @@ func (tree *IncrementalMerkleTree) GetPathToRoot() [][]byte {
 		if sibling == nil {
 			sibling = root
 		}
-		root = common.HashLR(tree.hasher, id, sibling, root)
+		root = tree.hasher(sibling, root)
 		paths[k+i+2] = root
 	}
 	return paths

@@ -211,7 +211,7 @@ func (httpServer *HttpServer) handleGetAncestorProof(params interface{}, closeCh
 	if err != nil {
 		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, err)
 	}
-	hashes, err := blockchain.GetMerkleProofWithRoot(
+	path, left, err := blockchain.GetMerkleProofWithRoot(
 		stateDB,
 		shardID,
 		ancestorHeight,
@@ -221,15 +221,14 @@ func (httpServer *HttpServer) handleGetAncestorProof(params interface{}, closeCh
 		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, err)
 	}
 
-	return buildAncestorProof(hashes), nil
+	return buildAncestorProof(path, left), nil
 }
 
-func buildAncestorProof(hashes [][]byte) jsonresult.GetAncestorProof {
-	proof := jsonresult.GetAncestorProof{
-		Hash: []string{},
-	}
-	for _, h := range hashes {
-		proof.Hash = append(proof.Hash, hex.EncodeToString(h))
+func buildAncestorProof(path [][]byte, left []bool) jsonresult.GetAncestorProof {
+	proof := jsonresult.GetAncestorProof{}
+	for i, h := range path {
+		proof.Path = append(proof.Path, hex.EncodeToString(h))
+		proof.IsLeft = append(proof.IsLeft, left[i])
 	}
 	return proof
 }

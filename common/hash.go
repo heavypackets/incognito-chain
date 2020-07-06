@@ -179,15 +179,6 @@ func Keccak256Bytes(data ...[]byte) []byte {
 
 type Hasher func(data ...[]byte) []byte
 
-// HashLR returns a hash value of the children of a node in a merkle tree
-// with encoded left/right position of that node
-func HashLR(hasher Hasher, pos uint64, data ...[]byte) []byte {
-	h := hasher(data...)
-	l := len(h)
-	h[l-1] = (h[l-1] & (byte(255) - 1)) | byte(pos&1) // Encode left/right of the position in the LSB
-	return h
-}
-
 func HashArrayInterface(target interface{}) (Hash, error) {
 	arr := InterfaceSlice(target)
 	if len(arr) == 0 {

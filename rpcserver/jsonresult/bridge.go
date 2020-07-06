@@ -33,5 +33,6 @@ type GetFinalityProof struct {
 }
 
 type GetAncestorProof struct {
-	Hash []string
+	Path   []string
+	IsLeft []bool
 }
