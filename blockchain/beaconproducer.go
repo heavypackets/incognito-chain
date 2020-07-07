@@ -215,7 +215,6 @@ func (blockchain *BlockChain) NewBlockBeacon(curView *BeaconBestState, version i
 		Logger.log.Error(err)
 		return nil, NewBlockChainError(GenerateInstructionHashError, err)
 	}
-	Logger.log.Infof("[db] NewBlockBeacon tempInstructionHash: %s, tempInstructionArr: %v", tempInstructionHash.String(), tempInstructionArr)
 	// Instruction merkle root
 	flattenInsts, err := FlattenAndConvertStringInst(tempInstruction)
 	if err != nil {
