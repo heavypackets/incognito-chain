@@ -354,11 +354,13 @@ func (tx *TxVersion1) proveASM(params *TxPrivacyInitParamsForASM) error {
 // ========== NORMAL VERIFY FUNCTIONS ==========
 
 func (tx TxVersion1) ValidateSanityData(chainRetriever metadata.ChainRetriever, shardViewRetriever metadata.ShardViewRetriever, beaconViewRetriever metadata.BeaconViewRetriever, beaconHeight uint64) (bool, error) {
-	check, err := checkSanityMetadataVersionSizeProofTypeInfo(&tx, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight)
-	if !check {
-		if err != nil {
-			Logger.Log.Errorf("Cannot check sanity of metadata, version, size, proof, type and info: err %v", err)
-		}
+	if check, err := validateSanityTxWithoutMetadata(&tx, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight); !check || err != nil {
+		Logger.Log.Errorf("Cannot check sanity of version, size, proof, type and info: err %v", err)
+		return false, err
+	}
+
+	if check, err := validateSanityMetadata(&tx, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight); !check || err != nil {
+		Logger.Log.Errorf("Cannot check sanity of metadata: err %v", err)
 		return false, err
 	}
 	// Ver1 also validate size of sigpubkey
@@ -536,36 +538,12 @@ func (tx *TxVersion1) Verify(hasPrivacy bool, transactionStateDB *statedb.StateD
 	return true, nil
 }
 
-func (tx TxVersion1) VerifyMinerCreatedTxBeforeGettingInBlock(mintdata *metadata.MintData, shardID byte, bcr metadata.ChainRetriever, accumulatedValues *metadata.AccumulatedValues, retriever metadata.ShardViewRetriever, viewRetriever metadata.BeaconViewRetriever) (bool, error) {
-	if tx.IsPrivacy() {
-		return true, nil
-	}
-	proof := tx.GetProof()
-	meta := tx.GetMetadata()
-
-	inputCoins := make([]coin.PlainCoin, 0)
-	outputCoins := make([]coin.Coin, 0)
-	if tx.GetProof() != nil {
-		inputCoins = tx.GetProof().GetInputCoins()
-		outputCoins = tx.GetProof().GetOutputCoins()
-	}
-	if proof != nil && len(inputCoins) == 0 && len(outputCoins) > 0 { // coinbase tx
-		if meta == nil {
-			return false, nil
-		}
-		if !meta.IsMinerCreatedMetaType() {
-			return false, nil
-		}
-	}
-	if meta != nil {
-		ok, err := meta.VerifyMinerCreatedTxBeforeGettingInBlock(mintdata, shardID, &tx, bcr, accumulatedValues, retriever, viewRetriever)
-		if err != nil {
-			Logger.Log.Error(err)
-			return false, NewTransactionErr(VerifyMinerCreatedTxBeforeGettingInBlockError, err)
-		}
-		return ok, nil
-	}
-	return true, nil
+func (tx TxVersion1) VerifyMinerCreatedTxBeforeGettingInBlock(mintdata *metadata.MintData,
+		shardID byte, bcr metadata.ChainRetriever,
+		accumulatedValues *metadata.AccumulatedValues,
+		retriever metadata.ShardViewRetriever,
+		viewRetriever metadata.BeaconViewRetriever) (bool, error) {
+	return verifyTxCreatedByMiner(&tx, mintdata, shardID, bcr, accumulatedValues, retriever, viewRetriever)
 }
 
 // ========== SALARY FUNCTIONS: INIT AND VALIDATE  ==========
@@ -672,7 +650,7 @@ func (tx TxVersion1) ValidateTxSalary(
 
 // =========== SHARED FUNCTIONS ==========
 
-func (tx TxVersion1) GetTxMintData() (bool, coin.Coin, *common.Hash, error) { return getTxMintData(&tx) }
+func (tx TxVersion1) GetTxMintData() (bool, coin.Coin, *common.Hash, error) { return getTxMintData(&tx, &common.PRVCoinID) }
 
 func (tx TxVersion1) GetTxBurnData() (bool, coin.Coin, *common.Hash, error) { return getTxBurnData(&tx) }
 

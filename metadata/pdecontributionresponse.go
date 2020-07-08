@@ -16,6 +16,7 @@ type PDEContributionResponse struct {
 	ContributionStatus string
 	RequestedTxID      common.Hash
 	TokenIDStr         string
+	SharedRandom       []byte
 }
 
 func NewPDEContributionResponse(
@@ -59,7 +60,9 @@ func (iRes PDEContributionResponse) Hash() *common.Hash {
 	record += iRes.TokenIDStr
 	record += iRes.ContributionStatus
 	record += iRes.MetadataBase.Hash().String()
-
+	if iRes.SharedRandom != nil && len(iRes.SharedRandom) > 0 {
+		record += string(iRes.SharedRandom)
+	}
 	// final hash
 	hash := common.HashH([]byte(record))
 	return &hash
@@ -71,14 +74,12 @@ func (iRes *PDEContributionResponse) CalculateSize() uint64 {
 
 func (iRes PDEContributionResponse) VerifyMinerCreatedTxBeforeGettingInBlock(mintData *MintData, shardID byte, tx Transaction, chainRetriever ChainRetriever, ac *AccumulatedValues, shardViewRetriever ShardViewRetriever, beaconViewRetriever BeaconViewRetriever) (bool, error) {
 	idx := -1
-	insts := mintData.Insts
-	instUsed := mintData.InstsUsed
-	for i, inst := range insts {
+	for i, inst := range mintData.Insts {
 		if len(inst) < 4 { // this is not PDEContribution instruction
 			continue
 		}
 		instMetaType := inst[0]
-		if instUsed[i] > 0 ||
+		if mintData.InstsUsed[i] > 0 ||
 			instMetaType != strconv.Itoa(PDEContributionMeta) {
 			continue
 		}
@@ -126,23 +127,31 @@ func (iRes PDEContributionResponse) VerifyMinerCreatedTxBeforeGettingInBlock(min
 			shardID != shardIDFromInst {
 			continue
 		}
+
 		key, err := wallet.Base58CheckDeserialize(receiverAddrStrFromInst)
 		if err != nil {
 			Logger.log.Info("WARNING - VALIDATION: an error occured while deserializing receiver address string: ", err)
 			continue
 		}
-		_, pk, paidAmount, assetID := tx.GetTransferData()
-		if !bytes.Equal(key.KeySet.PaymentAddress.Pk[:], pk[:]) ||
-			receivingAmtFromInst != paidAmount ||
-			receivingTokenIDStr != assetID.String() {
+
+		isMinted, mintCoin, coinID, err := tx.GetTxMintData()
+		if err != nil || !isMinted || coinID.String() != receivingTokenIDStr {
 			continue
 		}
+		if ok := mintCoin.CheckCoinValid(key.KeySet.PaymentAddress, iRes.SharedRandom, receivingAmtFromInst); !ok {
+			continue
+		}
+
 		idx = i
 		break
 	}
 	if idx == -1 { // not found the issuance request tx for this response
 		return false, fmt.Errorf(fmt.Sprintf("no PDEContribution instruction found for PDEContributionResponse tx %s", tx.Hash().String()))
 	}
-	instUsed[idx] = 1
+	mintData.InstsUsed[idx] = 1
 	return true, nil
+}
+
+func (iRes *PDEContributionResponse) SetSharedRandom(r []byte) {
+	iRes.SharedRandom = r
 }

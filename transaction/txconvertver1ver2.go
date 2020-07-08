@@ -1,12 +1,12 @@
 package transaction
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/incognitochain/incognito-chain/incognitokey"
 	"github.com/incognitochain/incognito-chain/privacy/privacy_v1/zeroknowledge/serialnumbernoprivacy"
 	"github.com/incognitochain/incognito-chain/privacy/privacy_v2"
-	"math/big"
 	"strconv"
 	"time"
 
@@ -68,11 +68,17 @@ func validateTxConvertVer1ToVer2Params(params *TxConvertVer1ToVer2InitParams) er
 
 	sumInput, sumOutput := uint64(0), uint64(0)
 	for _, c := range params.inputCoins {
-		sumInput += c.GetValue()
 		if c.GetVersion() != 1 {
 			err := errors.New("TxConversion should only have inputCoins version 1")
 			return NewTransactionErr(InvalidInputCoinVersionErr, err)
 		}
+
+		//Verify if input coins have been concealed
+		if c.GetRandomness() == nil || c.GetSNDerivator() == nil || c.GetPublicKey() == nil || c.GetCommitment() == nil {
+			err := errors.New("input coins should not be concealed")
+			return NewTransactionErr(InvalidInputCoinVersionErr, err)
+		}
+		sumInput += c.GetValue()
 	}
 	for _, c := range params.paymentInfo {
 		sumOutput += c.Amount
@@ -165,9 +171,6 @@ func proveConversion(tx *TxVersion2, params *TxConvertVer1ToVer2InitParams) erro
 		Logger.Log.Errorf("Error in privacy_v2.Prove, error %v ", err)
 		return err
 	}
-	tx.sigPrivKey = []byte{}
-	randSK := big.NewInt(0)
-	tx.sigPrivKey = append(*params.senderSK, randSK.Bytes()...) //CHECK THIS! Why setting tx.sigPrivKey?
 
 	// sign tx
 	if tx.Sig, tx.SigPubKey, err = signNoPrivacy(params.senderSK, tx.Hash()[:]); err != nil {
@@ -192,29 +195,8 @@ func validateConversionVer1ToVer2(tx metadata.Transaction, statedb *statedb.Stat
 		return false, errors.New("Error casting ConversionProofVer1ToVer2")
 	}
 
-	//Verify the conversion proof
-	valid, err := proofConversion.Verify(false, tx.GetSigPubKey(), tx.GetTxFee(), shardID, tokenID, false, nil)
-	if !valid {
-		if err != nil {
-			Logger.Log.Error(err)
-		}
-		return false, NewTransactionErr(TxProofVerifyFailError, err, tx.Hash().String())
-	}
-
-	//Verify that output coins' one-time-address has not been obtained
-	outputCoins := tx.GetProof().GetOutputCoins()
-	for i := 0; i < len(outputCoins); i++ {
-		if ok, err := txDatabaseWrapper.hasOnetimeAddress(statedb, *tokenID, outputCoins[i].GetPublicKey().ToBytesS()); ok || err != nil {
-			if err != nil {
-				errStr := fmt.Sprintf("TxConversion database onetimeAddress got error: %v", err)
-				return false, errors.New(errStr)
-			}
-			return false, errors.New("TxConversion found existing onetimeaddress in database error")
-		}
-	}
-
 	//Verify that input coins have not been spent
-	inputCoins := tx.GetProof().GetInputCoins()
+	inputCoins := proofConversion.GetInputCoins()
 	for i := 0; i < len(inputCoins); i++ {
 		if ok, err := txDatabaseWrapper.hasSerialNumber(statedb, *tokenID, inputCoins[i].GetKeyImage().ToBytesS(), shardID); ok || err != nil {
 			if err != nil {
@@ -224,7 +206,36 @@ func validateConversionVer1ToVer2(tx metadata.Transaction, statedb *statedb.Stat
 			return false, errors.New("TxConversion found existing serialNumber in database error")
 		}
 	}
-	Logger.Log.Debugf("SUCCESSED VERIFICATION PAYMENT PROOF")
+
+	//Verify that output coins' one-time-address has not been obtained + not duplicate OTAs
+	outputCoins := proofConversion.GetOutputCoins()
+	mapOutputCoins := make(map[string]int)
+	for i := 0; i < len(outputCoins); i++ {
+		if ok, err := txDatabaseWrapper.hasOnetimeAddress(statedb, *tokenID, outputCoins[i].GetPublicKey().ToBytesS()); ok || err != nil {
+			if err != nil {
+				errStr := fmt.Sprintf("TxConversion database onetimeAddress got error: %v", err)
+				return false, errors.New(errStr)
+			}
+			return false, errors.New("TxConversion found existing one-time-address in database error")
+		}
+		dst := make([]byte, hex.EncodedLen(len(outputCoins[i].GetPublicKey().ToBytesS())))
+		hex.Encode(dst, outputCoins[i].GetPublicKey().ToBytesS())
+		mapOutputCoins[string(dst)] = i
+	}
+	if len(mapOutputCoins) != len(outputCoins) {
+		return false, errors.New("TxConversion found duplicate one-time-address error")
+	}
+
+	//Verify the conversion proof
+	valid, err := proofConversion.Verify(false, tx.GetSigPubKey(), tx.GetTxFee(), shardID, tokenID, false, nil)
+	if !valid {
+		if err != nil {
+			Logger.Log.Error(err)
+		}
+		return false, NewTransactionErr(TxProofVerifyFailError, err, tx.Hash().String())
+	}
+
+	Logger.Log.Debugf("SUCCEEDED VERIFICATION PAYMENT PROOF")
 	return true, nil
 }
 

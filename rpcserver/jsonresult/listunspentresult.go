@@ -69,15 +69,14 @@ func NewOutCoin(outCoin coin.PlainCoin) OutCoin {
 	}
 
 	result := OutCoin{
-		Version:     strconv.FormatUint(uint64(outCoin.GetVersion()), 10),
-		Index:       strconv.FormatUint(uint64(outCoin.GetIndex()), 10),
-		PublicKey:   publicKey,
-		Value:       strconv.FormatUint(outCoin.GetValue(), 10),
-		Info:        base58.Base58Check{}.Encode(outCoin.GetInfo()[:], common.ZeroByte),
-		Commitment:  commitment,
-		SNDerivator: snd,
-		KeyImage:    keyImage,
-		Randomness:  randomness,
+		Version: 		strconv.FormatUint(uint64(outCoin.GetVersion()), 10),
+		PublicKey:      publicKey,
+		Value:          strconv.FormatUint(outCoin.GetValue(), 10),
+		Info:           EncodeBase58Check(outCoin.GetInfo()),
+		Commitment: 	commitment,
+		SNDerivator:    snd,
+		KeyImage:   	keyImage,
+		Randomness: 	randomness,
 	}
 	return result
 }

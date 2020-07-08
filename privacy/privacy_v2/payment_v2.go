@@ -332,15 +332,17 @@ func Prove(inputCoins []coin.PlainCoin, outputCoins []*coin.CoinV2, hasPrivacy b
 
 	// After Prove, we should hide all information in coin details.
 	for i := 0; i < len(outputCoins); i++ {
-		proof.outputCoins[i].ConcealData(paymentInfo[i].PaymentAddress.GetPublicView())
-		// OutputCoin.KeyImage should be nil even though we do not have it
+		if err = proof.outputCoins[i].ConcealOutputCoin(paymentInfo[i].PaymentAddress.GetPublicView()); err != nil {
+			return nil, err
+		}
+
+		// OutputCoin.GetKeyImage should be nil even though we do not have it
 		// Because otherwise the RPC server will return the Bytes of [1 0 0 0 0 ...] (the default byte)
 		proof.outputCoins[i].SetKeyImage(nil)
 	}
 
 	for i := 0; i < len(proof.GetInputCoins()); i++ {
-		proof.inputCoins[i].SetValue(0)
-		proof.inputCoins[i].SetRandomness(nil)
+		proof.inputCoins[i].(*coin.CoinV2).ConcealInputCoin()
 	}
 
 	return proof, nil
@@ -385,6 +387,16 @@ func (proof PaymentProofV2) verifyHasNoPrivacy(fee uint64) (bool, error) {
 }
 
 func (proof PaymentProofV2) Verify(hasPrivacy bool, pubKey key.PublicKey, fee uint64, shardID byte, tokenID *common.Hash, isBatch bool, additionalData interface{}) (bool, error) {
+	inputCoins := proof.GetInputCoins()
+	dupMap := make(map[string]bool)
+	for _,coin := range inputCoins{
+		identifier := base64.StdEncoding.EncodeToString(coin.GetKeyImage().ToBytesS())
+		_, exists := dupMap[identifier]
+		if exists{
+			return false, errors.New("Duplicate input coin in PaymentProofV2")
+		}
+		dupMap[identifier] = true
+	}
 	// has no privacy
 	if !hasPrivacy {
 		return proof.verifyHasNoPrivacy(fee)

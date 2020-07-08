@@ -19,7 +19,7 @@ type TxTokenVersion1 struct {
 }
 
 func (txToken *TxTokenVersion1) Init(paramsInterface interface{}) error {
-	params, ok := paramsInterface.(*TxPrivacyTokenInitParams)
+	params, ok := paramsInterface.(*TxTokenParams)
 	if !ok {
 		return errors.New("Cannot init TxTokenBase because params is not correct")
 	}
@@ -241,4 +241,23 @@ func (txToken TxTokenVersion1) ValidateTransaction(hasPrivacyCoin bool, transact
 		}
 	}
 	return false, err
+}
+
+func (txToken TxTokenVersion1) ValidateSanityData(chainRetriever metadata.ChainRetriever, shardViewRetriever metadata.ShardViewRetriever, beaconViewRetriever metadata.BeaconViewRetriever, beaconHeight uint64) (bool, error) {
+	// validate metadata
+	check, err := validateSanityMetadata(&txToken, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight)
+	if !check || err != nil {
+		return false, NewTransactionErr(InvalidSanityDataPrivacyTokenError, err)
+	}
+	// validate sanity for tx pToken + metadata
+	check, err = validateSanityTxWithoutMetadata(txToken.TxTokenData.TxNormal, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight)
+	if !check || err != nil {
+		return false, NewTransactionErr(InvalidSanityDataPrivacyTokenError, err)
+	}
+	// validate sanity for tx pToken + without metadata
+	check1, err1 := validateSanityTxWithoutMetadata(txToken.Tx, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight)
+	if !check1 || err1 != nil {
+		return false, NewTransactionErr(InvalidSanityDataPrivacyTokenError, err1)
+	}
+	return true, nil
 }

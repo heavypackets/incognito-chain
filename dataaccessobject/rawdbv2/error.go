@@ -112,7 +112,7 @@ var ErrCodeMessage = map[int]struct {
 	StoreCrossShardNextHeightError: {-2005, "Store Cross Shard Next Height Error"},
 	FetchCrossShardNextHeightError: {-2006, "Fetch Cross Shard Next Height Error"},
 	StoreShardBlockIndexError:      {-2007, "Store Shard Block Index Error"},
-	GetIndexOfBlockError:           {-2008, "Get Index Of Shard Block Error"},
+	GetIndexOfBlockError:           {-2008, "Get GetIndex Of Shard Block Error"},
 	StoreShardBestStateError:       {-2009, "Store Shard Best State Error"},
 	StoreFeeEstimatorError:         {-2010, "Store Fee Estimator Error"},
 	GetFeeEstimatorError:           {-2011, "Get Fee Estimator Error"},

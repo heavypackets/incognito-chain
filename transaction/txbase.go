@@ -168,6 +168,7 @@ func (tx *TxBase) initializeTxAndParams(params *TxPrivacyInitParams) error {
 		Logger.Log.Errorf("Cannot parse Private Key. Err %v", err)
 		return NewTransactionErr(PrivateKeySenderInvalidError, err)
 	}
+	tx.sigPrivKey = *params.senderSK
 	// Tx: initialize some values
 	if tx.LockTime == 0 {
 		tx.LockTime = time.Now().Unix()
@@ -395,12 +396,6 @@ func (tx TxBase) GetTransferData() (bool, []byte, uint64, *common.Hash) {
 		return false, nil, 0, &common.PRVCoinID
 	}
 	return true, pubkeys[0], amounts[0], &common.PRVCoinID
-}
-
-// implement this func if needed
-func (tx TxBase) GetMetadataFromVinsTx(bcr metadata.ChainRetriever, retriever metadata.ShardViewRetriever, viewRetriever metadata.BeaconViewRetriever) (metadata.Metadata, error) {
-	// implement this func if needed
-	return nil, nil
 }
 
 func (tx TxBase) ListSerialNumbersHashH() []common.Hash {

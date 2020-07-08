@@ -42,7 +42,7 @@ func TestEstimateTxSize(t *testing.T) {
 	fmt.Println(size)
 	assert.Greater(t, size, uint64(0))
 
-	privacyCustomTokenParams := CustomTokenPrivacyParamTx{
+	privacyCustomTokenParams := TokenParam{
 		Receiver: []*privacy.PaymentInfo{{
 			PaymentAddress: paymentAddress, Amount: 5,
 		}},

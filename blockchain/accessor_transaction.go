@@ -242,8 +242,6 @@ func (blockchain *BlockChain) QueryDBToGetOutcoinsVer2BytesByKeyset(keyset *inco
 	transactionStateDB := blockchain.GetBestStateShard(shardID).transactionStateDB
 	currentHeight := blockchain.GetBestStateShard(shardID).ShardHeight
 
-	//fmt.Println("StartHeight = ", shardHeight)
-	//fmt.Println("Current Blockchain height = ", currentHeight)
 	var outCoinsBytes [][]byte
 	for height := shardHeight; height <= currentHeight; height += 1 {
 		currentHeightCoins, err := statedb.GetOTACoinsByHeight(transactionStateDB, *tokenID, shardID, height)
@@ -251,22 +249,20 @@ func (blockchain *BlockChain) QueryDBToGetOutcoinsVer2BytesByKeyset(keyset *inco
 			Logger.log.Error("Get outcoins ver 2 bytes by keyset get by height", err)
 			return nil, err
 		}
-		//fmt.Println("Querying height =", height)
-		//fmt.Println("Got number of coins = ", len(currentHeightCoins))
+
 		for _, coinBytes := range currentHeightCoins {
 			c, err := coin.NewCoinFromByte(coinBytes)
 			if err != nil {
 				Logger.log.Error("Get outcoins ver 2 bytes by keyset Parse Coin From Bytes", err)
 				return nil, err
 			}
-			//fmt.Println("Found a coin")
-			//fmt.Println("Version = ", c.GetVersion())
-			//fmt.Println("Index = ", c.GetIndex())
-			//fmt.Println("Commitment = ", c.GetCommitment())
-			//fmt.Println("PublicKey = ", c.GetPublicKey())
-			//fmt.Println("Keyset readonly key.publicKey = ", keyset.ReadonlyKey.Pk)
-			//fmt.Println("Keyset readonly key.privateViewKey = ", keyset.ReadonlyKey.Rk)
-			//fmt.Println("Is belong to key = ", coin.IsCoinBelongToViewKey(c, keyset.ReadonlyKey))
+			fmt.Println("Found a coin")
+			fmt.Println("Version = ", c.GetVersion())
+			fmt.Println("Commitment = ", c.GetCommitment())
+			fmt.Println("PublicKey = ", c.GetPublicKey())
+			fmt.Println("Keyset readonly key.publicKey = ", keyset.ReadonlyKey.Pk)
+			fmt.Println("Keyset readonly key.privateViewKey = ", keyset.ReadonlyKey.Rk)
+			fmt.Println("Is belong to key = ", coin.IsCoinBelongToViewKey(c, keyset.ReadonlyKey))
 			if coin.IsCoinBelongToViewKey(c, keyset.ReadonlyKey) {
 				outCoinsBytes = append(outCoinsBytes, c.Bytes())
 			}
@@ -356,26 +352,7 @@ func (blockchain *BlockChain) GetListDecryptedOutputCoinsByKeyset(keyset *incogn
 	if keyset == nil {
 		return nil, NewBlockChainError(GetListDecryptedOutputCoinsByKeysetError, fmt.Errorf("invalid key set, got keyset %+v", keyset))
 	}
-	//if blockchain.config.MemCache != nil {
-	//	// get from cache
-	//	cachedKey := memcache.GetListOutputcoinCachedKey(keyset.PaymentAddress.Pk[:], tokenID, shardID)
-	//	cachedData, _ := blockchain.config.MemCache.Get(cachedKey)
-	//	if cachedData != nil && len(cachedData) > 0 {
-	//		// try to parsing on outCointsInBytes
-	//		_ = json.Unmarshal(cachedData, &outCoinsInBytes)
-	//	}
-	//	if len(outCoinsInBytes) == 0 {
-	//		// cached data is nil or fail -> get from database
-	//		outCoinsInBytes, err = blockchain.QueryDBToGetOutcoinsBytesByKeyset(keyset, shardID, tokenID, shardHeight)
-	//		if len(outCoinsInBytes) > 0 {
-	//			// cache 1 day for result
-	//			cachedData, err = json.Marshal(outCoinsInBytes)
-	//			if err == nil {
-	//				blockchain.config.MemCache.PutExpired(cachedKey, cachedData, 1*24*60*60*time.Millisecond)
-	//			}
-	//		}
-	//	}
-	//}
+
 	if len(outCoinsInBytes) == 0 {
 		outCoinsInBytes, err = blockchain.QueryDBToGetOutcoinsBytesByKeyset(keyset, shardID, tokenID, shardHeight)
 		if err != nil {
@@ -429,7 +406,7 @@ func (blockchain *BlockChain) CreateAndSaveTxViewPointFromBlock(shardBlock *Shar
 	for _, indexTx := range indices {
 		privacyCustomTokenSubView := view.privacyCustomTokenViewPoint[int32(indexTx)]
 		privacyCustomTokenTx := view.privacyCustomTokenTxs[int32(indexTx)]
-		tokenData := privacyCustomTokenTx.GetTxPrivacyTokenData()
+		tokenData := privacyCustomTokenTx.GetTxTokenData()
 		isBridgeToken := false
 		for _, tempBridgeToken := range allBridgeTokens {
 			if tempBridgeToken.TokenID != nil && bytes.Equal(tokenData.PropertyID[:], tempBridgeToken.TokenID[:]) {
@@ -602,7 +579,6 @@ func (blockchain *BlockChain) StoreOnetimeAddressesFromTxViewPoint(stateDB *stat
 				//fmt.Println("Coin Version =", outputCoin.GetVersion())
 				//fmt.Println("Coin ShardID =", shardIDcoin)
 				//fmt.Println("Coin ShardID =", shardIDcoin)
-				//fmt.Println("Coin Index =", outputCoin.GetIndex())
 				//fmt.Println("Coin Value =", outputCoin.GetValue())
 				//fmt.Println("Coin Info =", outputCoin.GetInfo())
 				//fmt.Println("Coin is encrypted =", outputCoin.IsEncrypted())

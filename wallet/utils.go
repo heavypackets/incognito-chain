@@ -83,5 +83,6 @@ func IsPublicKeyBurningAddress(publicKey []byte) bool {
 	if bytes.Equal(publicKey, keyWalletBurningAdd2.KeySet.PaymentAddress.Pk) {
 		return true
 	}
+
 	return false
 }

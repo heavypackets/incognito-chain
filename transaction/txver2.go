@@ -21,25 +21,29 @@ import (
 	"github.com/incognitochain/incognito-chain/privacy/privacy_v2/mlsag"
 )
 
-// TxSigPubKey of ver2 is array of indexes in database
+// TxSigPubKey of ver2 is array of Indexes in database
 type TxSigPubKeyVer2 struct {
-	indexes [][]*big.Int
+	Indexes [][]*big.Int
+}
+
+type TxVersion2 struct {
+	TxBase
 }
 
 func (sigPub TxSigPubKeyVer2) Bytes() ([]byte, error) {
-	n := len(sigPub.indexes)
+	n := len(sigPub.Indexes)
 	if n == 0 {
 		return nil, errors.New("TxSigPublicKeyVer2.ToBytes: Indexes is empty")
 	}
 	if n > MaxSizeByte {
 		return nil, errors.New("TxSigPublicKeyVer2.ToBytes: Indexes is too large, too many rows")
 	}
-	m := len(sigPub.indexes[0])
+	m := len(sigPub.Indexes[0])
 	if m > MaxSizeByte {
 		return nil, errors.New("TxSigPublicKeyVer2.ToBytes: Indexes is too large, too many columns")
 	}
 	for i := 1; i < n; i += 1 {
-		if len(sigPub.indexes[i]) != m {
+		if len(sigPub.Indexes[i]) != m {
 			return nil, errors.New("TxSigPublicKeyVer2.ToBytes: Indexes is not a rectangle array")
 		}
 	}
@@ -49,7 +53,7 @@ func (sigPub TxSigPubKeyVer2) Bytes() ([]byte, error) {
 	b = append(b, byte(m))
 	for i := 0; i < n; i += 1 {
 		for j := 0; j < m; j += 1 {
-			currentByte := sigPub.indexes[i][j].Bytes()
+			currentByte := sigPub.Indexes[i][j].Bytes()
 			lengthByte := len(currentByte)
 			if lengthByte > MaxSizeByte {
 				return nil, errors.New("TxSigPublicKeyVer2.ToBytes: IndexesByte is too large")
@@ -63,7 +67,7 @@ func (sigPub TxSigPubKeyVer2) Bytes() ([]byte, error) {
 
 func (sigPub *TxSigPubKeyVer2) SetBytes(b []byte) error {
 	if len(b) < 2 {
-		return errors.New("txSigPubKeyFromBytes: cannot parse length of indexes, length of input byte is too small")
+		return errors.New("txSigPubKeyFromBytes: cannot parse length of Indexes, length of input byte is too small")
 	}
 	n := int(b[0])
 	m := int(b[1])
@@ -89,12 +93,8 @@ func (sigPub *TxSigPubKeyVer2) SetBytes(b []byte) error {
 	if sigPub == nil {
 		sigPub = new(TxSigPubKeyVer2)
 	}
-	sigPub.indexes = indexes
+	sigPub.Indexes = indexes
 	return nil
-}
-
-type TxVersion2 struct {
-	TxBase
 }
 
 // ========== GET FUNCTION ===========
@@ -220,7 +220,7 @@ func (tx *TxVersion2) signOnMessage(inp []coin.PlainCoin, out []*coin.CoinV2, pa
 
 	// Set SigPubKey
 	txSigPubKey := new(TxSigPubKeyVer2)
-	txSigPubKey.indexes = indexes
+	txSigPubKey.Indexes = indexes
 	tx.SigPubKey, err = txSigPubKey.Bytes()
 	if err != nil {
 		Logger.Log.Errorf("tx.SigPubKey cannot parse from Bytes, error %v ", err)
@@ -315,12 +315,11 @@ func getRingFromSigPubKeyAndLastColumnCommitment(sigPubKey []byte, sumOutputsWit
 		errStr := fmt.Sprintf("Error when parsing bytes of txSigPubKey %v", err)
 		return nil, NewTransactionErr(UnexpectedError, errors.New(errStr))
 	}
-	indexes := txSigPubKey.indexes
-
+	indexes := txSigPubKey.Indexes
 	n := len(indexes)
 	m := len(indexes[0])
 	if n == 0 {
-		return nil, errors.New("Cannot get ring from indexes: Indexes is empty")
+		return nil, errors.New("Cannot get ring from Indexes: Indexes is empty")
 	}
 
 	ring := make([][]*operation.Point, n)
@@ -497,35 +496,7 @@ func (tx *TxVersion2) Verify(hasPrivacy bool, transactionStateDB *statedb.StateD
 }
 
 func (tx TxVersion2) VerifyMinerCreatedTxBeforeGettingInBlock(mintdata *metadata.MintData, shardID byte, bcr metadata.ChainRetriever, accumulatedValues *metadata.AccumulatedValues, retriever metadata.ShardViewRetriever, viewRetriever metadata.BeaconViewRetriever) (bool, error) {
-	if tx.IsPrivacy() {
-		return true, nil
-	}
-	proof := tx.GetProof()
-	meta := tx.GetMetadata()
-
-	inputCoins := make([]coin.PlainCoin, 0)
-	outputCoins := make([]coin.Coin, 0)
-	if tx.GetProof() != nil {
-		inputCoins = tx.GetProof().GetInputCoins()
-		outputCoins = tx.GetProof().GetOutputCoins()
-	}
-	if proof != nil && len(inputCoins) == 0 && len(outputCoins) > 0 { // coinbase tx
-		if meta == nil {
-			return false, nil
-		}
-		if !meta.IsMinerCreatedMetaType() {
-			return false, nil
-		}
-	}
-	if meta != nil {
-		ok, err := meta.VerifyMinerCreatedTxBeforeGettingInBlock(mintdata, shardID, &tx, bcr, accumulatedValues, retriever, viewRetriever)
-		if err != nil {
-			Logger.Log.Error(err)
-			return false, NewTransactionErr(VerifyMinerCreatedTxBeforeGettingInBlockError, err)
-		}
-		return ok, nil
-	}
-	return true, nil
+	return verifyTxCreatedByMiner(&tx, mintdata, shardID, bcr, accumulatedValues, retriever, viewRetriever)
 }
 
 // ========== SALARY FUNCTIONS: INIT AND VALIDATE  ==========
@@ -649,19 +620,22 @@ func (tx TxVersion2) ValidateSanityData(chainRetriever metadata.ChainRetriever, 
 		return false, errors.New("Tx Privacy Ver 2 must have proof")
 	}
 
-	check, err := checkSanityMetadataVersionSizeProofTypeInfo(&tx, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight)
-	if !check {
-		if err != nil {
-			Logger.Log.Errorf("Cannot check sanity of metadata, version, size, proof, type and info: err %v", err)
-		}
+	if check, err := validateSanityTxWithoutMetadata(&tx, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight); !check || err != nil {
+		Logger.Log.Errorf("Cannot check sanity of version, size, proof, type and info: err %v", err)
 		return false, err
 	}
+
+	if check, err := validateSanityMetadata(&tx, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight); !check || err != nil {
+		Logger.Log.Errorf("Cannot check sanity of metadata: err %v", err)
+		return false, err
+	}
+
 	return true, nil
 }
 
 // ========== SHARED FUNCTIONS ============
 
-func (tx TxVersion2) GetTxMintData() (bool, coin.Coin, *common.Hash, error) { return getTxMintData(&tx) }
+func (tx TxVersion2) GetTxMintData() (bool, coin.Coin, *common.Hash, error) { return getTxMintData(&tx, &common.PRVCoinID) }
 
 func (tx TxVersion2) GetTxBurnData() (bool, coin.Coin, *common.Hash, error) { return getTxBurnData(&tx) }
 

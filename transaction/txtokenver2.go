@@ -46,7 +46,7 @@ func checkIsBridgeTokenID(bridgeStateDB *statedb.StateDB, tokenID *common.Hash) 
 	return nil
 }
 
-func (txToken *TxTokenVersion2) initToken(params *TxPrivacyTokenInitParams) error {
+func (txToken *TxTokenVersion2) initToken(params *TxTokenParams) error {
 	txToken.TxTokenData.SetType(params.tokenParams.TokenTxType)
 	txToken.TxTokenData.SetPropertyName(params.tokenParams.PropertyName)
 	txToken.TxTokenData.SetPropertySymbol(params.tokenParams.PropertySymbol)
@@ -87,7 +87,7 @@ func (txToken *TxTokenVersion2) initToken(params *TxPrivacyTokenInitParams) erro
 			if temp.PubKeyLastByteSender, err = params.inputCoin[0].GetShardID(); err != nil {
 				return NewTransactionErr(GetShardIDByPublicKeyError, err)
 			}
-			temp.sigPrivKey = *params.senderKey
+			//temp.sigPrivKey = *params.senderKey
 
 			temp.Sig, _, err = signNoPrivacy(params.senderKey, temp.Hash()[:])
 			if err != nil {
@@ -207,7 +207,7 @@ func (txToken *TxTokenVersion2) initPRVFee(feeTx *TxVersion2, params *TxPrivacyI
 }
 
 func (txToken *TxTokenVersion2) Init(paramsInterface interface{}) error {
-	params, ok := paramsInterface.(*TxPrivacyTokenInitParams)
+	params, ok := paramsInterface.(*TxTokenParams)
 	if !ok {
 		return errors.New("Cannot init TxCustomTokenPrivacy because params is not correct")
 	}
@@ -304,7 +304,7 @@ func (txToken *TxTokenVersion2) InitTxTokenSalary(otaCoin *coin.CoinV2, privKey 
 	temp.Proof = proof
 	temp.PubKeyLastByteSender = publicKeyBytes[len(publicKeyBytes)-1]
 	// signOnMessage Tx
-	temp.sigPrivKey = *privKey
+	//temp.sigPrivKey = *privKey
 	if temp.Sig, temp.SigPubKey, err = signNoPrivacy(privKey, temp.Hash()[:]); err != nil {
 		Logger.Log.Error(errors.New("can't signOnMessage this tx"))
 		return NewTransactionErr(SignTxError, err)
@@ -321,13 +321,12 @@ func (txToken *TxTokenVersion2) InitTxTokenSalary(otaCoin *coin.CoinV2, privKey 
 	tx.sigPrivKey = *txPrivacyParams.senderSK
 
 	hashedTokenMessage := txToken.TxTokenData.TxNormal.Hash()
+	txToken.SetTxBase(tx)
 	message := common.HashH(append(txToken.GetTxBase().Hash()[:], hashedTokenMessage[:]...))
 	if tx.Sig, tx.SigPubKey, err = signNoPrivacy(privKey, message[:]); err != nil {
 		Logger.Log.Error(errors.New(fmt.Sprintf("Cannot signOnMessage tx %v\n", err)))
 		return NewTransactionErr(SignTxError, err)
 	}
-	txToken.SetTxBase(tx)
-
 	return nil
 }
 
@@ -444,4 +443,26 @@ func (txToken TxTokenVersion2) ValidateTransaction(hasPrivacyCoin bool, transact
 		}
 	}
 	return false, err
+}
+
+func (txToken TxTokenVersion2) ValidateSanityData(chainRetriever metadata.ChainRetriever, shardViewRetriever metadata.ShardViewRetriever, beaconViewRetriever metadata.BeaconViewRetriever, beaconHeight uint64) (bool, error) {
+	if txToken.GetTxBase().GetProof() == nil && txToken.TxTokenData.TxNormal.GetProof() == nil {
+		return false, errors.New("Tx Privacy Ver 2 must have a proof")
+	}
+	// validate metadata
+	check, err := validateSanityMetadata(&txToken, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight)
+	if !check || err != nil {
+		return false, NewTransactionErr(InvalidSanityDataPrivacyTokenError, err)
+	}
+	// validate sanity for tx pToken + metadata
+	check, err = validateSanityTxWithoutMetadata(txToken.TxTokenData.TxNormal, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight)
+	if !check || err != nil {
+		return false, NewTransactionErr(InvalidSanityDataPrivacyTokenError, err)
+	}
+	// validate sanity for tx pToken + without metadata
+	check1, err1 := validateSanityTxWithoutMetadata(txToken.Tx, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight)
+	if !check1 || err1 != nil {
+		return false, NewTransactionErr(InvalidSanityDataPrivacyTokenError, err1)
+	}
+	return true, nil
 }
