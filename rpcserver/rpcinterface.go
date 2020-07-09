@@ -63,6 +63,7 @@ var HttpHandler = map[string]httpHandler{
 
 	// transaction
 	listOutputCoins:                         (*HttpServer).handleListOutputCoins,
+	listOutputTokens:                         (*HttpServer).handleListOutputCoins,
 	createRawTransaction:                    (*HttpServer).handleCreateRawTransaction,
 	sendRawTransaction:                      (*HttpServer).handleSendRawTransaction,
 	createConvertCoinVer1ToVer2Transaction:  (*HttpServer).handleCreateConvertCoinVer1ToVer2Transaction,
@@ -112,6 +113,7 @@ var HttpHandler = map[string]httpHandler{
 	privacyCustomTokenTxs:                      (*HttpServer).handlePrivacyCustomTokenDetail,
 	getListPrivacyCustomTokenBalance:           (*HttpServer).handleGetListPrivacyCustomTokenBalance,
 	getBalancePrivacyCustomToken:               (*HttpServer).handleGetBalancePrivacyCustomToken,
+	listUnspentOutputTokens:                    (*HttpServer).handleListUnspentOutputTokens,
 
 	// Bridge
 	createIssuingRequest:            (*HttpServer).handleCreateIssuingRequest,
