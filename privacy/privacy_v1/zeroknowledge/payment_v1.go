@@ -95,6 +95,9 @@ func (proof PaymentProof) GetOutputCoins() []coin.Coin {
 	return res
 }
 
+func (proof *PaymentProof) SetAggregatedRangeProof(aggregatedRangeProof *aggregatedrange.AggregatedRangeProof) {proof.aggregatedRangeProof = aggregatedRangeProof}
+func (proof *PaymentProof) SetSerialNumberProof(serialNumberProof []*serialnumberprivacy.SNPrivacyProof) {proof.serialNumberProof = serialNumberProof}
+
 func (proof *PaymentProof) SetInputCoins(v []coin.PlainCoin) error {
 	var err error
 	proof.inputCoins = make([]coin.PlainCoin, len(v))
@@ -770,7 +773,7 @@ func (proof PaymentProof) verifyHasPrivacy(pubKey key.PublicKey, fee uint64, sha
 
 	// Verify the proof that output values and sum of them do not exceed v_max
 	if isBatch == false {
-		valid, err := proof.aggregatedRangeProof.Verify()
+		valid, err := proof.aggregatedRangeProof. Verify()
 		if !valid {
 			Logger.Log.Errorf("VERIFICATION PAYMENT PROOF: Multi-range failed")
 			return false, errhandler.NewPrivacyErr(errhandler.VerifyAggregatedProofFailedErr, err)
@@ -831,9 +834,9 @@ func (proof PaymentProof) ValidateSanity() (bool, error) {
 	}
 
 	// check doubling a input coin in tx
-	serialNumbers := make(map[common.Hash]bool)
+	serialNumbers := make(map[[operation.Ed25519KeySize]byte]bool)
 	for i, inCoin := range proof.GetInputCoins() {
-		hashSN := common.HashH(inCoin.GetKeyImage().ToBytesS())
+		hashSN := inCoin.GetKeyImage().ToBytes()
 		if serialNumbers[hashSN] {
 			Logger.Log.Errorf("Double input in proof - index %v", i)
 			return false, errors.New("double input in tx")

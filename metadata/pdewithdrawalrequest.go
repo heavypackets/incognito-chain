@@ -80,9 +80,6 @@ func (pc PDEWithdrawalRequest) ValidateSanityData(chainRetriever ChainRetriever,
 		return false, false, errors.New("WithdrawerAddr unauthorized")
 	}
 
-	//if !bytes.Equal(tx.GetSigPubKey()[:], withdrawerAddr.Pk[:]) {
-	//	return false, false, errors.New("WithdrawerAddr incorrect")
-	//}
 	_, err = common.Hash{}.NewHashFromStr(pc.WithdrawalToken1IDStr)
 	if err != nil {
 		return false, false, NewMetadataTxError(PDEWithdrawalRequestFromMapError, errors.New("WithdrawalTokenID1Str incorrect"))
