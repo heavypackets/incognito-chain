@@ -1,16 +1,14 @@
 package blockchain
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/incognitochain/incognito-chain/blockchain/committeestate"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
-	"github.com/incognitochain/incognito-chain/incdb"
 	"reflect"
-	"sort"
-	"strconv"
 	"time"
+
+	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
+	"github.com/incognitochain/incognito-chain/privacy"
 
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
@@ -27,26 +25,34 @@ import (
 // However, the returned snapshot must be treated as immutable since it is
 // shared by all callers.
 
+type BeaconRootHash struct {
+	ConsensusStateDBRootHash common.Hash
+	FeatureStateDBRootHash   common.Hash
+	RewardStateDBRootHash    common.Hash
+	SlashStateDBRootHash     common.Hash
+}
+
 type BeaconBestState struct {
-	BestBlockHash           common.Hash          `json:"BestBlockHash"`         // The hash of the block.
-	PreviousBestBlockHash   common.Hash          `json:"PreviousBestBlockHash"` // The hash of the block.
-	BestBlock               BeaconBlock          `json:"BestBlock"`             // The block.
-	BestShardHash           map[byte]common.Hash `json:"BestShardHash"`
-	BestShardHeight         map[byte]uint64      `json:"BestShardHeight"`
-	Epoch                   uint64               `json:"Epoch"`
-	BeaconHeight            uint64               `json:"BeaconHeight"`
-	BeaconProposerIndex     int                  `json:"BeaconProposerIndex"`
-	CurrentRandomNumber     int64                `json:"CurrentRandomNumber"`
-	CurrentRandomTimeStamp  int64                `json:"CurrentRandomTimeStamp"` // random timestamp for this epoch
-	IsGetRandomNumber       bool                 `json:"IsGetRandomNumber"`
-	Params                  map[string]string    `json:"Params,omitempty"`
-	MaxBeaconCommitteeSize  int                  `json:"MaxBeaconCommitteeSize"`
-	MinBeaconCommitteeSize  int                  `json:"MinBeaconCommitteeSize"`
-	MaxShardCommitteeSize   int                  `json:"MaxShardCommitteeSize"`
-	MinShardCommitteeSize   int                  `json:"MinShardCommitteeSize"`
-	ActiveShards            int                  `json:"ActiveShards"`
-	ConsensusAlgorithm      string               `json:"ConsensusAlgorithm"`
-	ShardConsensusAlgorithm map[byte]string      `json:"ShardConsensusAlgorithm"`
+	BestBlockHash           common.Hash            `json:"BestBlockHash"`         // The hash of the block.
+	PreviousBestBlockHash   common.Hash            `json:"PreviousBestBlockHash"` // The hash of the block.
+	BestBlock               BeaconBlock            `json:"BestBlock"`             // The block.
+	BestShardHash           map[byte]common.Hash   `json:"BestShardHash"`
+	BestShardHeight         map[byte]uint64        `json:"BestShardHeight"`
+	Epoch                   uint64                 `json:"Epoch"`
+	BeaconHeight            uint64                 `json:"BeaconHeight"`
+	BeaconProposerIndex     int                    `json:"BeaconProposerIndex"`
+	CurrentRandomNumber     int64                  `json:"CurrentRandomNumber"`
+	CurrentRandomTimeStamp  int64                  `json:"CurrentRandomTimeStamp"` // random timestamp for this epoch
+	IsGetRandomNumber       bool                   `json:"IsGetRandomNumber"`
+	Params                  map[string]string      `json:"Params,omitempty"`
+	MaxBeaconCommitteeSize  int                    `json:"MaxBeaconCommitteeSize"`
+	MinBeaconCommitteeSize  int                    `json:"MinBeaconCommitteeSize"`
+	MaxShardCommitteeSize   int                    `json:"MaxShardCommitteeSize"`
+	MinShardCommitteeSize   int                    `json:"MinShardCommitteeSize"`
+	ActiveShards            int                    `json:"ActiveShards"`
+	ConsensusAlgorithm      string                 `json:"ConsensusAlgorithm"`
+	ShardConsensusAlgorithm map[byte]string        `json:"ShardConsensusAlgorithm"`
+	StakingTx               map[string]common.Hash `json:"-"`
 	// key: public key of committee, value: payment address reward receiver
 	beaconCommitteeEngine BeaconCommitteeEngine
 	// cross shard state for all the shard. from shardID -> to crossShard shardID -> last height
@@ -58,8 +64,6 @@ type BeaconBestState struct {
 	NumOfBlocksByProducers map[string]uint64 `json:"NumOfBlocksByProducers"`
 	BlockInterval          time.Duration
 	BlockMaxCreateTime     time.Duration
-	//================================ local state
-	currentPDEState *CurrentPDEState
 	//================================ StateDB Method
 	// block height => root hash
 	consensusStateDB         *statedb.StateDB
@@ -110,51 +114,12 @@ func NewBeaconBestStateWithConfig(netparam *Params, beaconCommitteeEngine Beacon
 	beaconBestState.LastCrossShardState = make(map[byte]map[byte]uint64)
 	beaconBestState.BlockInterval = netparam.MinBeaconBlockInterval
 	beaconBestState.BlockMaxCreateTime = netparam.MaxBeaconBlockCreation
-	beaconBestState.currentPDEState = new(CurrentPDEState)
 	beaconBestState.beaconCommitteeEngine = beaconCommitteeEngine
 	return beaconBestState
 }
 
 func (bc *BlockChain) GetBeaconBestState() *BeaconBestState {
 	return bc.BeaconChain.multiView.GetBestView().(*BeaconBestState)
-}
-
-func (beaconBestState *BeaconBestState) InitStateRootHashFromDatabase(bc *BlockChain) error {
-	db := bc.GetBeaconChainDatabase()
-	var dbAccessWarper = statedb.NewDatabaseAccessWarper(db)
-	if rootHash, err := bc.GetBeaconConsensusRootHash(db, beaconBestState.BeaconHeight); err == nil {
-		beaconBestState.consensusStateDB, err = statedb.NewWithPrefixTrie(rootHash, dbAccessWarper)
-		if err != nil {
-			return err
-		}
-	} else {
-		return err
-	}
-	if rootHash, err := bc.GetBeaconFeatureRootHash(db, beaconBestState.BeaconHeight); err == nil {
-		beaconBestState.featureStateDB, err = statedb.NewWithPrefixTrie(rootHash, dbAccessWarper)
-		if err != nil {
-			return err
-		}
-	} else {
-		return err
-	}
-	if rootHash, err := bc.GetBeaconRewardRootHash(db, beaconBestState.BeaconHeight); err == nil {
-		beaconBestState.rewardStateDB, err = statedb.NewWithPrefixTrie(rootHash, dbAccessWarper)
-		if err != nil {
-			return err
-		}
-	} else {
-		return err
-	}
-	if rootHash, err := bc.GetBeaconSlashRootHash(db, beaconBestState.BeaconHeight); err == nil {
-		beaconBestState.slashStateDB, err = statedb.NewWithPrefixTrie(rootHash, dbAccessWarper)
-		if err != nil {
-			return err
-		}
-	} else {
-		return err
-	}
-	return nil
 }
 
 func (beaconBestState *BeaconBestState) InitStateRootHash(bc *BlockChain) error {
@@ -191,6 +156,12 @@ func (beaconBestState *BeaconBestState) MarshalJSON() ([]byte, error) {
 		Logger.log.Error(err)
 	}
 	return b, err
+}
+
+func (beaconBestState *BeaconBestState) GetProducerIndexFromBlock(block *BeaconBlock) int {
+	//TODO: revert his
+	//return (beaconBestState.BeaconProposerIndex + block.Header.Round) % len(beaconBestState.BeaconCommittee)
+	return 0
 }
 
 func (beaconBestState *BeaconBestState) SetBestShardHeight(shardID byte, height uint64) {
@@ -340,102 +311,8 @@ func (beaconBestState *BeaconBestState) CheckCommitteeSize() error {
 	return nil
 }
 
-func (beaconBestState *BeaconBestState) GetBytes() []byte {
-
-	var keys []int
-	var keyStrs []string
-	res := []byte{}
-	res = append(res, beaconBestState.BestBlockHash.GetBytes()...)
-	res = append(res, beaconBestState.PreviousBestBlockHash.GetBytes()...)
-	res = append(res, beaconBestState.BestBlock.Hash().GetBytes()...)
-	res = append(res, beaconBestState.BestBlock.Header.PreviousBlockHash.GetBytes()...)
-	for k := range beaconBestState.BestShardHash {
-		keys = append(keys, int(k))
-	}
-	sort.Ints(keys)
-	for _, shardID := range keys {
-		hash := beaconBestState.BestShardHash[byte(shardID)]
-		res = append(res, hash.GetBytes()...)
-	}
-	keys = []int{}
-	for k := range beaconBestState.BestShardHeight {
-		keys = append(keys, int(k))
-	}
-	sort.Ints(keys)
-	for _, shardID := range keys {
-		height := beaconBestState.BestShardHeight[byte(shardID)]
-		res = append(res, byte(height))
-	}
-	EpochBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(EpochBytes, beaconBestState.Epoch)
-	res = append(res, EpochBytes...)
-	heightBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(heightBytes, beaconBestState.BeaconHeight)
-	res = append(res, heightBytes...)
-	res = append(res, []byte(strconv.Itoa(beaconBestState.BeaconProposerIndex))...)
-	randomNumBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(randomNumBytes, uint64(beaconBestState.CurrentRandomNumber))
-	res = append(res, randomNumBytes...)
-
-	randomTimeBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(randomTimeBytes, uint64(beaconBestState.CurrentRandomTimeStamp))
-	res = append(res, randomTimeBytes...)
-
-	if beaconBestState.IsGetRandomNumber {
-		res = append(res, []byte("true")...)
-	} else {
-		res = append(res, []byte("false")...)
-	}
-	for k := range beaconBestState.Params {
-		keyStrs = append(keyStrs, k)
-	}
-	sort.Strings(keyStrs)
-	for _, key := range keyStrs {
-		res = append(res, []byte(beaconBestState.Params[key])...)
-	}
-
-	keys = []int{}
-	for k := range beaconBestState.ShardHandle {
-		keys = append(keys, int(k))
-	}
-	sort.Ints(keys)
-	for _, shardID := range keys {
-		shardHandleItem := beaconBestState.ShardHandle[byte(shardID)]
-		if shardHandleItem {
-			res = append(res, []byte("true")...)
-		} else {
-			res = append(res, []byte("false")...)
-		}
-	}
-	res = append(res, []byte(strconv.Itoa(beaconBestState.MaxBeaconCommitteeSize))...)
-	res = append(res, []byte(strconv.Itoa(beaconBestState.MinBeaconCommitteeSize))...)
-	res = append(res, []byte(strconv.Itoa(beaconBestState.MaxShardCommitteeSize))...)
-	res = append(res, []byte(strconv.Itoa(beaconBestState.MinShardCommitteeSize))...)
-	res = append(res, []byte(strconv.Itoa(beaconBestState.ActiveShards))...)
-
-	keys = []int{}
-	for k := range beaconBestState.LastCrossShardState {
-		keys = append(keys, int(k))
-	}
-	sort.Ints(keys)
-	for _, fromShard := range keys {
-		fromShardMap := beaconBestState.LastCrossShardState[byte(fromShard)]
-		newKeys := []int{}
-		for k := range fromShardMap {
-			newKeys = append(newKeys, int(k))
-		}
-		sort.Ints(newKeys)
-		for _, toShard := range newKeys {
-			value := fromShardMap[byte(toShard)]
-			valueBytes := make([]byte, 8)
-			binary.LittleEndian.PutUint64(valueBytes, value)
-			res = append(res, valueBytes...)
-		}
-	}
-	return res
-}
 func (beaconBestState *BeaconBestState) Hash() common.Hash {
-	return common.HashH(beaconBestState.GetBytes())
+	return common.Hash{}
 }
 
 func (beaconBestState *BeaconBestState) GetShardCandidate() []incognitokey.CommitteePublicKey {
@@ -473,7 +350,7 @@ func (beaconBestState *BeaconBestState) GetBeaconPendingValidator() []incognitok
 	return beaconBestState.beaconCommitteeEngine.GetBeaconSubstitute()
 }
 
-func (beaconBestState *BeaconBestState) GetRewardReceiver() map[string]string {
+func (beaconBestState *BeaconBestState) GetRewardReceiver() map[string]privacy.PaymentAddress {
 	return beaconBestState.beaconCommitteeEngine.GetRewardReceiver()
 }
 
@@ -515,6 +392,9 @@ func (beaconBestState *BeaconBestState) cloneBeaconBestStateFrom(target *BeaconB
 	beaconBestState.rewardStateDB = target.rewardStateDB.Copy()
 	beaconBestState.slashStateDB = target.slashStateDB.Copy()
 	beaconBestState.beaconCommitteeEngine = target.beaconCommitteeEngine
+	if beaconBestState.StakingTx == nil {
+		beaconBestState.StakingTx = make(map[string]common.Hash)
+	}
 	return nil
 }
 
@@ -715,18 +595,33 @@ func InitBeaconCommitteeEngineV1(activeShards int, consensusStateDB *statedb.Sta
 	return beaconCommitteeEngine
 }
 
-func (blockchain *BlockChain) GetBeaconConsensusRootHash(db incdb.Database, height uint64) (common.Hash, error) {
-	return rawdbv2.GetBeaconConsensusStateRootHash(db, height)
+func (blockchain *BlockChain) GetBeaconConsensusRootHash(beaconbestState *BeaconBestState, height uint64) (common.Hash, error) {
+	bRH, e := blockchain.GetBeaconRootsHash(beaconbestState.consensusStateDB, height)
+	if e != nil {
+		return common.Hash{}, e
+	}
+	return bRH.ConsensusStateDBRootHash, nil
+
 }
 
-func (blockchain *BlockChain) GetBeaconRewardRootHash(db incdb.Database, height uint64) (common.Hash, error) {
-	return rawdbv2.GetBeaconRewardStateRootHash(db, height)
+func (blockchain *BlockChain) GetBeaconFeatureRootHash(beaconbestState *BeaconBestState, height uint64) (common.Hash, error) {
+	bRH, e := blockchain.GetBeaconRootsHash(beaconbestState.consensusStateDB, height)
+	if e != nil {
+		return common.Hash{}, e
+	}
+	return bRH.FeatureStateDBRootHash, nil
 }
 
-func (blockchain *BlockChain) GetBeaconFeatureRootHash(db incdb.Database, height uint64) (common.Hash, error) {
-	return rawdbv2.GetBeaconFeatureStateRootHash(db, height)
-}
-
-func (blockchain *BlockChain) GetBeaconSlashRootHash(db incdb.Database, height uint64) (common.Hash, error) {
-	return rawdbv2.GetBeaconSlashStateRootHash(db, height)
+func (blockchain *BlockChain) GetBeaconRootsHash(stateDB *statedb.StateDB, height uint64) (*BeaconRootHash, error) {
+	h, e := statedb.GetBeaconBlockHashByIndex(stateDB, height)
+	if e != nil {
+		return nil, e
+	}
+	data, e := rawdbv2.GetBeaconRootsHash(blockchain.GetBeaconChainDatabase(), h)
+	if e != nil {
+		return nil, e
+	}
+	bRH := &BeaconRootHash{}
+	err := json.Unmarshal(data, bRH)
+	return bRH, err
 }
