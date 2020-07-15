@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"github.com/incognitochain/incognito-chain/privacy/coin"
 
@@ -27,6 +28,10 @@ func parseTradeRefundContent(
 		Logger.log.Errorf("ERROR: an error occured while unmarshaling pde trade refund content: %+v", err)
 		return nil, err
 	}
+	fmt.Println("Trade Request TxRandom ", pdeTradeRequestAction.Meta.TxRandomStr)
+	fmt.Println("Trade Request TradeAddress ", pdeTradeRequestAction.Meta.TraderAddressStr)
+	fmt.Println("Trade Request TradeAmount ", pdeTradeRequestAction.Meta.MinAcceptableAmount)
+	fmt.Println("Trade Request Request Tx ", pdeTradeRequestAction.TxReqID)
 
 	return &pdeTradeRequestAction, nil
 }
@@ -41,6 +46,10 @@ func parseTradeAcceptedContent(
 		Logger.log.Errorf("ERROR: an error occured while unmarshaling pde trade accepted content: %+v", err)
 		return nil, err
 	}
+	fmt.Println("Trade Request TxRandom ", pdeTradeAcceptedContent.TxRandomStr)
+	fmt.Println("Trade Request TradeAddress ", pdeTradeAcceptedContent.TraderAddressStr)
+	fmt.Println("Trade Request TradeAmount ", pdeTradeAcceptedContent.ReceiveAmount)
+	fmt.Println("Trade Request RequestID ", pdeTradeAcceptedContent.ReceiveAmount)
 	return &pdeTradeAcceptedContent, nil
 }
 
