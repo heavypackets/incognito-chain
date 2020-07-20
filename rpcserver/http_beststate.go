@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/incognitochain/incognito-chain/blockchain"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"github.com/incognitochain/incognito-chain/privacy"
 
 	"github.com/incognitochain/incognito-chain/common"
@@ -118,17 +117,7 @@ func (httpServer *HttpServer) handleGetShardBestState(params interface{}, closeC
 		return nil, rpcservice.NewRPCError(rpcservice.RPCInternalError, err)
 	}
 
-	beaconConsensusRootHash, err := httpServer.config.BlockChain.GetBeaconConsensusRootHash(httpServer.config.BlockChain.GetBeaconBestState(), shardBestState.BeaconHeight)
-	if err != nil {
-		return nil, rpcservice.NewRPCError(rpcservice.RPCInternalError, err)
-	}
-
-	beaconConsensusStateDB, err := statedb.NewWithPrefixTrie(beaconConsensusRootHash, statedb.NewDatabaseAccessWarper(httpServer.config.BlockChain.GetBeaconChainDatabase()))
-	if err != nil {
-		return nil, rpcservice.NewRPCError(rpcservice.RPCInternalError, err)
-	}
-
-	mapStakingTx, err := beaconConsensusStateDB.GetCurrentStakingTX(httpServer.config.BlockChain.GetShardIDs())
+	mapStakingTx, err := httpServer.config.BlockChain.GetShardStakingTx(shardBestState)
 	if err != nil {
 		return nil, rpcservice.NewRPCError(rpcservice.RPCInternalError, err)
 	}
