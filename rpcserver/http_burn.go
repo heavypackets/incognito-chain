@@ -82,10 +82,10 @@ func getBurnProofByHeight(
 	}
 
 	// Decode instruction to send to Ethereum without having to decode on client
-	decodedInst, bridgeHeight, beaconHeight := splitAndDecodeInst(bridgeInstProof.inst, beaconInstProof.inst)
+	decodedInst, _, _ := splitAndDecodeInst(bridgeInstProof.inst, beaconInstProof.inst)
 	//decodedInst := hex.EncodeToString(blockchain.DecodeInstruction(bridgeInstProof.inst))
 
-	return buildProofResult(decodedInst, beaconInstProof, bridgeInstProof, beaconHeight, bridgeHeight), nil
+	return buildProofResult(decodedInst, beaconInstProof, bridgeInstProof), nil
 }
 
 // getBurnProofOnBridge finds a beacon committee swap instruction in a given bridge block and returns its proof

@@ -19,12 +19,11 @@ import (
 type swapProof struct {
 	inst []string
 
-	instPath       []string
-	instPathIsLeft []bool
-	instRoot       string
-	blkData        string
-	signerSigs     []string
-	sigIdxs        []int
+	instPath   []string
+	instID     int64
+	blkData    string
+	signerSigs []string
+	sigIdxs    []int
 }
 
 type ConsensusEngine interface {
@@ -69,7 +68,7 @@ func (httpServer *HttpServer) handleGetBeaconSwapProof(params interface{}, close
 	}
 	inst := hex.EncodeToString(decodedInst)
 	bridgeInstProof := &swapProof{}
-	return buildProofResult(inst, beaconInstProof, bridgeInstProof, strconv.FormatUint(beaconHeigh, 10), ""), nil
+	return buildProofResult(inst, beaconInstProof, bridgeInstProof), nil
 }
 
 // getSwapProofOnBeacon finds in a given beacon block a committee swap instruction and returns its proof;
@@ -157,8 +156,7 @@ func buildProofForBlock(
 	// Build merkle proof for instruction in bridge block
 	instProof := buildInstProof(insts, id)
 
-	// Get meta hash and block hash
-	instRoot := hex.EncodeToString(blk.InstructionMerkleRoot())
+	// Get meta hash
 	metaHash := blk.MetaHash()
 
 	// Get sig data
@@ -166,20 +164,18 @@ func buildProofForBlock(
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	fmt.Printf("DeBridge log: sig: %d %x\n", len(bSigs[0]), bSigs[0])
 	sigs := []string{}
 	for _, s := range bSigs {
 		sigs = append(sigs, hex.EncodeToString(s))
 	}
 
 	return &swapProof{
-		inst:           insts[id],
-		instPath:       instProof.getPath(),
-		instPathIsLeft: instProof.left,
-		instRoot:       instRoot,
-		blkData:        hex.EncodeToString(metaHash[:]),
-		signerSigs:     sigs,
-		sigIdxs:        sigIdxs,
+		inst:       insts[id],
+		instPath:   instProof.getPath(),
+		instID:     int64(id),
+		blkData:    hex.EncodeToString(metaHash[:]),
+		signerSigs: sigs,
+		sigIdxs:    sigIdxs,
 	}, nil
 }
 
@@ -372,26 +368,20 @@ func buildProofResult(
 	decodedInst string,
 	beaconInstProof *swapProof,
 	bridgeInstProof *swapProof,
-	beaconHeight string,
-	bridgeHeight string,
 ) jsonresult.GetInstructionProof {
 	return jsonresult.GetInstructionProof{
-		Instruction:  decodedInst,
-		BeaconHeight: beaconHeight,
-		BridgeHeight: bridgeHeight,
+		Instruction: decodedInst,
 
-		BeaconInstPath:       beaconInstProof.instPath,
-		BeaconInstPathIsLeft: beaconInstProof.instPathIsLeft,
-		BeaconInstRoot:       beaconInstProof.instRoot,
-		BeaconBlkData:        beaconInstProof.blkData,
-		BeaconSigs:           beaconInstProof.signerSigs,
-		BeaconSigIdxs:        beaconInstProof.sigIdxs,
+		BeaconInstPath: beaconInstProof.instPath,
+		BeaconInstID:   beaconInstProof.instID,
+		BeaconBlkData:  beaconInstProof.blkData,
+		BeaconSigs:     beaconInstProof.signerSigs,
+		BeaconSigIdxs:  beaconInstProof.sigIdxs,
 
-		BridgeInstPath:       bridgeInstProof.instPath,
-		BridgeInstPathIsLeft: bridgeInstProof.instPathIsLeft,
-		BridgeInstRoot:       bridgeInstProof.instRoot,
-		BridgeBlkData:        bridgeInstProof.blkData,
-		BridgeSigs:           bridgeInstProof.signerSigs,
-		BridgeSigIdxs:        bridgeInstProof.sigIdxs,
+		BridgeInstPath: bridgeInstProof.instPath,
+		BridgeInstID:   bridgeInstProof.instID,
+		BridgeBlkData:  bridgeInstProof.blkData,
+		BridgeSigs:     bridgeInstProof.signerSigs,
+		BridgeSigIdxs:  bridgeInstProof.sigIdxs,
 	}
 }

@@ -3,7 +3,6 @@ package rpcserver
 import (
 	"encoding/hex"
 	"fmt"
-	"strconv"
 
 	"github.com/incognitochain/incognito-chain/blockchain"
 	"github.com/incognitochain/incognito-chain/common"
@@ -46,7 +45,7 @@ func (httpServer *HttpServer) handleGetBridgeSwapProof(params interface{}, close
 	}
 
 	// Get proof of instruction on bridge
-	bridgeInstProof, bridgeShardBlockHeight, err := getBridgeSwapProofOnBridge(beaconBlock, httpServer.GetBlockchain(), httpServer.config.ConsensusEngine)
+	bridgeInstProof, _, err := getBridgeSwapProofOnBridge(beaconBlock, httpServer.GetBlockchain(), httpServer.config.ConsensusEngine)
 	if err != nil {
 		return nil, rpcservice.NewRPCError(rpcservice.UnexpectedError, err)
 	}
@@ -58,7 +57,7 @@ func (httpServer *HttpServer) handleGetBridgeSwapProof(params interface{}, close
 	}
 	inst := hex.EncodeToString(decodedInst)
 
-	return buildProofResult(inst, beaconInstProof, bridgeInstProof, strconv.FormatUint(beaconBlock.Header.Height, 10), strconv.FormatUint(bridgeShardBlockHeight, 10)), nil
+	return buildProofResult(inst, beaconInstProof, bridgeInstProof), nil
 }
 
 // getBridgeSwapProofOnBridge finds a bridge committee swap instruction in a bridge block and returns its proof; the bridge block must be included in a given beaconBlock
