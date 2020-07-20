@@ -140,6 +140,7 @@ func getShardAndBeaconBlocks(
 type block interface {
 	common.BlockInterface // to be able to get ValidationData from ConsensusEngine
 
+	ProposeTime() int64
 	Instructions() [][]string
 	InstructionMerkleRoot() []byte
 	MetaHash() []byte
@@ -302,6 +303,10 @@ type beaconBlock struct {
 	*blockchain.BeaconBlock
 }
 
+func (bb *beaconBlock) ProposeTime() int64 {
+	return bb.Header.ProposeTime
+}
+
 func (bb *beaconBlock) InstructionMerkleRoot() []byte {
 	return bb.Header.InstructionMerkleRoot[:]
 }
@@ -321,6 +326,10 @@ func (bb *beaconBlock) Instructions() [][]string {
 
 type shardBlock struct {
 	*blockchain.ShardBlock
+}
+
+func (sb *shardBlock) ProposeTime() int64 {
+	return sb.Header.ProposeTime
 }
 
 func (sb *shardBlock) InstructionMerkleRoot() []byte {

@@ -22,17 +22,16 @@ type GetInstructionProof struct {
 
 // GetFinalityProof contains the proof that 2 blocks N and N+1 is valid and N is finalled
 type GetFinalityProof struct {
-	Instructions    [2]string   // BlockMerkleRootMeta instruction
-	InstPaths       [2][]string // Proofs that the above insts are in the blocks
-	InstPathIsLefts [2][]bool   // Left/right indicator of the paths
+	Instructions [2]string   // BlockMerkleRootMeta instruction
+	InstPaths    [2][]string // Proofs that the above insts are in the blocks
+	IDs          [2]int64    // Index of the instruction in the block
 
-	BlkData  [2]string
-	InstRoot [2]string
-	Sigs     [2][]string // Hex encoded signature (r, s, v)
-	SigIdxs  [2][]int    // Idxs of signer
+	BlkData [2]string
+	Sigs    [2][]string // Hex encoded signature (r, s, v)
+	SigIdxs [2][]int    // Idxs of signer
 }
 
 type GetAncestorProof struct {
-	Path   []string
-	IsLeft []bool
+	Path []string
+	ID   int64
 }
