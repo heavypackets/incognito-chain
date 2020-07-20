@@ -119,7 +119,7 @@ func (c *CoinV2) ConcealOutputCoin(additionalData interface{}) error {
 
 	rK := new(operation.Point).ScalarMult(publicView, c.GetSharedRandom())
 	_, index, err := c.GetTxRandomDetail()
-	if err  != nil {
+	if err != nil {
 		return err
 	}
 	hash := operation.HashToScalar(append(rK.ToBytesS(), common.Uint32ToBytes(index)...))
@@ -213,32 +213,32 @@ func (c *CoinV2) Init() *CoinV2 {
 func (c CoinV2) GetSNDerivator() *operation.Scalar { return nil }
 
 func (c CoinV2) IsEncrypted() bool {
-	if c.mask == nil {
+	if c.mask == nil || c.amount == nil {
 		return true
 	}
 	tempCommitment := operation.PedCom.CommitAtIndex(c.amount, c.mask, operation.PedersenValueIndex)
 	return !operation.IsPointEqual(tempCommitment, c.commitment)
 }
 
-func (c CoinV2) GetVersion() uint8                { return 2 }
-func (c CoinV2) GetRandomness() *operation.Scalar { return c.mask }
+func (c CoinV2) GetVersion() uint8                  { return 2 }
+func (c CoinV2) GetRandomness() *operation.Scalar   { return c.mask }
 func (c CoinV2) GetAmount() *operation.Scalar       { return c.amount }
 func (c CoinV2) GetSharedRandom() *operation.Scalar { return c.sharedRandom }
-func (c CoinV2) GetPublicKey() *operation.Point  { return c.publicKey }
-func (c CoinV2) GetCommitment() *operation.Point { return c.commitment }
-func (c CoinV2) GetKeyImage() *operation.Point { return c.keyImage }
-func (c CoinV2) GetInfo() []byte               { return c.info }
+func (c CoinV2) GetPublicKey() *operation.Point     { return c.publicKey }
+func (c CoinV2) GetCommitment() *operation.Point    { return c.commitment }
+func (c CoinV2) GetKeyImage() *operation.Point      { return c.keyImage }
+func (c CoinV2) GetInfo() []byte                    { return c.info }
 func (c CoinV2) GetValue() uint64 {
 	if c.IsEncrypted() {
 		return 0
 	}
 	return c.amount.ToUint64Little()
 }
-func (c CoinV2) GetTxRandom() *TxRandom {return c.txRandom}
+func (c CoinV2) GetTxRandom() *TxRandom { return c.txRandom }
 func (c CoinV2) GetTxRandomDetail() (*operation.Point, uint32, error) {
 	txRandomPoint, err1 := c.txRandom.GetTxRandomPoint()
 	index, err2 := c.txRandom.GetIndex()
-	if err1 != nil || err2 != nil{
+	if err1 != nil || err2 != nil {
 		return nil, 0, errors.New("Cannot Get TxRandom: point or index is wrong")
 	}
 	return txRandomPoint, index, nil
@@ -444,7 +444,7 @@ func (c *CoinV2) CheckCoinValid(paymentAdd key.PaymentAddress, sharedRandom []by
 
 	rK := new(operation.Point).ScalarMult(paymentAdd.GetPublicView(), r)
 	txRandomPoint, index, err := c.GetTxRandomDetail()
-	if err  != nil {
+	if err != nil {
 		return false
 	}
 	if !operation.IsPointEqual(new(operation.Point).ScalarMultBase(r), txRandomPoint) {

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func verifyTxCreatedByMiner(tx metadata.Transaction, mintdata *metadata.MintData, shardID byte, bcr metadata.ChainRetriever, accumulatedValues *metadata.AccumulatedValues, retriever metadata.ShardViewRetriever, viewRetriever metadata.BeaconViewRetriever) (bool, error)  {
+func verifyTxCreatedByMiner(tx metadata.Transaction, mintdata *metadata.MintData, shardID byte, bcr metadata.ChainRetriever, accumulatedValues *metadata.AccumulatedValues, retriever metadata.ShardViewRetriever, viewRetriever metadata.BeaconViewRetriever) (bool, error) {
 	if tx.IsPrivacy() {
 		return true, nil
 	}
@@ -107,7 +107,7 @@ func validateTxByItself(tx metadata.Transaction, hasPrivacy bool, transactionSta
 	}
 	meta := tx.GetMetadata()
 	if meta != nil {
-		if hasPrivacy && tx.GetVersion() == 1{
+		if hasPrivacy && tx.GetVersion() == 1 {
 			return false, errors.New("Metadata can not exist in not privacy tx")
 		}
 		validateMetadata := meta.ValidateMetadataByItself()
@@ -132,10 +132,10 @@ func validateTransaction(tx metadata.Transaction, hasPrivacy bool, transactionSt
 	return tx.Verify(hasPrivacy, transactionStateDB, bridgeStateDB, shardID, tokenID, isBatch, isNewTransaction)
 }
 
-func validateSanityMetadata(tx metadata.Transaction, chainRetriever metadata.ChainRetriever, shardViewRetriever metadata.ShardViewRetriever, beaconViewRetriever metadata.BeaconViewRetriever, beaconHeight uint64) ( bool, error) {
+func validateSanityMetadata(tx metadata.Transaction, chainRetriever metadata.ChainRetriever, shardViewRetriever metadata.ShardViewRetriever, beaconViewRetriever metadata.BeaconViewRetriever, beaconHeight uint64) (bool, error) {
 	meta := tx.GetMetadata()
 	if meta != nil {
-		isValid, ok, err := meta.ValidateSanityData(chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight, tx )
+		isValid, ok, err := meta.ValidateSanityData(chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight, tx)
 		if err != nil || !ok || !isValid {
 			return ok, err
 		}
@@ -188,30 +188,51 @@ func validateSanityTxWithoutMetadata(tx metadata.Transaction, chainRetriever met
 	return true, nil
 }
 
-func getTxActualSizeInBytes(tx metadata.Transaction) uint64{
+func getTxActualSizeInBytes(tx metadata.Transaction) uint64 {
 	if tx == nil {
 		return uint64(0)
 	}
-	sizeTx := uint64(0)
-	sizeTx += uint64(1) //version
-	sizeTx += uint64(len(tx.GetType()) + 1) //type string
-	sizeTx += uint64(8) //locktime
-	sizeTx += uint64(8) //fee
-	sizeTx += uint64(len(tx.GetInfo())) //info
+	var sizeTx = uint64(0)
+	txTokenBase, ok := tx.(TxTokenBase)
+	if ok { //TxTokenBase
+		sizeTx += getTxActualSizeInBytes(txTokenBase.Tx)
 
-	sizeTx += uint64(len(tx.GetSigPubKey())) //sigpubkey
-	sizeTx += uint64(len(tx.GetSig())) //signature
-	sizeTx += uint64(1) //pubkeylastbytesender
+		if &txTokenBase.TxTokenData != nil {
+			sizeTx += getTxActualSizeInBytes(txTokenBase.TxTokenData.TxNormal)
+			sizeTx += uint64(len(txTokenBase.TxTokenData.PropertyName))
+			sizeTx += uint64(len(txTokenBase.TxTokenData.PropertySymbol))
+			sizeTx += uint64(len(txTokenBase.TxTokenData.PropertyID))
+			sizeTx += 4 // Type
+			sizeTx += 1 // Mintable
+			sizeTx += 8 // Amount
+		}
+		meta := txTokenBase.GetMetadata()
+		if meta != nil {
+			sizeTx += meta.CalculateSize()
+		}
 
-	//paymentproof
-	if tx.GetProof() != nil {
-		sizeTx += uint64(len(tx.GetProof().Bytes()))
+		return sizeTx
+	} else { //TxBase
+		sizeTx += uint64(1)                     //version
+		sizeTx += uint64(len(tx.GetType()) + 1) //type string
+		sizeTx += uint64(8)                     //locktime
+		sizeTx += uint64(8)                     //fee
+		sizeTx += uint64(len(tx.GetInfo()))     //info
+
+		sizeTx += uint64(len(tx.GetSigPubKey())) //sigpubkey
+		sizeTx += uint64(len(tx.GetSig()))       //signature
+		sizeTx += uint64(1)                      //pubkeylastbytesender
+
+		//paymentproof
+		if tx.GetProof() != nil {
+			sizeTx += uint64(len(tx.GetProof().Bytes()))
+		}
+
+		//metadata
+		if tx.GetMetadata() != nil {
+			sizeTx += tx.GetMetadata().CalculateSize()
+		}
+
+		return sizeTx
 	}
-
-	//metadata
-	if tx.GetMetadata() != nil {
-		sizeTx += tx.GetMetadata().CalculateSize()
-	}
-
-	return sizeTx
 }

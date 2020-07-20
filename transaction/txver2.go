@@ -318,10 +318,11 @@ func getRingFromSigPubKeyAndLastColumnCommitment(sigPubKey []byte, sumOutputsWit
 	}
 	indexes := txSigPubKey.Indexes
 	n := len(indexes)
-	m := len(indexes[0])
 	if n == 0 {
 		return nil, errors.New("Cannot get ring from Indexes: Indexes is empty")
 	}
+
+	m := len(indexes[0])
 
 	ring := make([][]*operation.Point, n)
 	for i := 0; i < n; i += 1 {
@@ -579,7 +580,7 @@ func (tx *TxVersion2) ValidateTxSalary(db *statedb.StateDB) (bool, error) {
 		errStr := fmt.Sprintf("error when getting coin shardID, err: %v", errShard)
 		return false, NewTransactionErr(UnexpectedError, errors.New(errStr))
 	}
-	if coinShardID != tx.PubKeyLastByteSender {
+	if coinShardID != common.GetShardIDFromLastByte(tx.PubKeyLastByteSender) {
 		return false, NewTransactionErr(UnexpectedError, errors.New("output coin's shardID is different from tx pubkey last byte"))
 	}
 
@@ -640,7 +641,9 @@ func (tx TxVersion2) ValidateSanityData(chainRetriever metadata.ChainRetriever, 
 
 // ========== SHARED FUNCTIONS ============
 
-func (tx TxVersion2) GetTxMintData() (bool, coin.Coin, *common.Hash, error) { return getTxMintData(&tx, &common.PRVCoinID) }
+func (tx TxVersion2) GetTxMintData() (bool, coin.Coin, *common.Hash, error) {
+	return getTxMintData(&tx, &common.PRVCoinID)
+}
 
 func (tx TxVersion2) GetTxBurnData() (bool, coin.Coin, *common.Hash, error) { return getTxBurnData(&tx) }
 

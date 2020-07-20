@@ -111,7 +111,7 @@ func (proof AggregatedRangeProof) Bytes() []byte {
 	return res
 }
 
-func (proof AggregatedRangeProof) GetCommitments() []*operation.Point {return proof.cmsValue}
+func (proof AggregatedRangeProof) GetCommitments() []*operation.Point { return proof.cmsValue }
 
 func (proof *AggregatedRangeProof) SetBytes(bytes []byte) error {
 	if len(bytes) == 0 {
@@ -124,6 +124,9 @@ func (proof *AggregatedRangeProof) SetBytes(bytes []byte) error {
 
 	proof.cmsValue = make([]*operation.Point, lenValues)
 	for i := 0; i < lenValues; i++ {
+		if offset+operation.Ed25519KeySize > len(bytes) {
+			return errors.New("Range Proof unmarshaling from bytes failed")
+		}
 		proof.cmsValue[i], err = new(operation.Point).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 		if err != nil {
 			return err
@@ -131,44 +134,69 @@ func (proof *AggregatedRangeProof) SetBytes(bytes []byte) error {
 		offset += operation.Ed25519KeySize
 	}
 
+	if offset+operation.Ed25519KeySize > len(bytes) {
+		return errors.New("Range Proof unmarshaling from bytes failed")
+	}
 	proof.a, err = new(operation.Point).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 	if err != nil {
 		return err
 	}
 	offset += operation.Ed25519KeySize
 
+	if offset+operation.Ed25519KeySize > len(bytes) {
+		return errors.New("Range Proof unmarshaling from bytes failed")
+	}
 	proof.s, err = new(operation.Point).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 	if err != nil {
 		return err
 	}
 	offset += operation.Ed25519KeySize
 
+	if offset+operation.Ed25519KeySize > len(bytes) {
+		return errors.New("Range Proof unmarshaling from bytes failed")
+	}
 	proof.t1, err = new(operation.Point).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 	if err != nil {
 		return err
 	}
 	offset += operation.Ed25519KeySize
 
+	if offset+operation.Ed25519KeySize > len(bytes) {
+		return errors.New("Range Proof unmarshaling from bytes failed")
+	}
 	proof.t2, err = new(operation.Point).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 	if err != nil {
 		return err
 	}
 	offset += operation.Ed25519KeySize
 
+	if offset+operation.Ed25519KeySize > len(bytes) {
+		return errors.New("Range Proof unmarshaling from bytes failed")
+	}
 	proof.tauX = new(operation.Scalar).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 	offset += operation.Ed25519KeySize
 
+	if offset+operation.Ed25519KeySize > len(bytes) {
+		return errors.New("Range Proof unmarshaling from bytes failed")
+	}
 	proof.tHat = new(operation.Scalar).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 	offset += operation.Ed25519KeySize
 
+	if offset+operation.Ed25519KeySize > len(bytes) {
+		return errors.New("Range Proof unmarshaling from bytes failed")
+	}
 	proof.mu = new(operation.Scalar).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 	offset += operation.Ed25519KeySize
 
-	proof.innerProductProof = new(InnerProductProof)
-	proof.innerProductProof.SetBytes(bytes[offset:])
+	if offset >= len(bytes) {
+		return errors.New("Range Proof unmarshaling from bytes failed")
+	}
 
+	proof.innerProductProof = new(InnerProductProof)
+	err = proof.innerProductProof.SetBytes(bytes[offset:])
+	// it's the last check, so we just return it
 	//operation.Logger.Log.Debugf("AFTER SETBYTES ------------ %v\n", proof.Bytes())
-	return nil
+	return err
 }
 
 func (wit *AggregatedRangeWitness) Set(values []uint64, rands []*operation.Scalar) {

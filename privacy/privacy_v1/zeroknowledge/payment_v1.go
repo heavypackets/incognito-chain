@@ -95,9 +95,27 @@ func (proof PaymentProof) GetOutputCoins() []coin.Coin {
 	return res
 }
 
-func (proof *PaymentProof) SetAggregatedRangeProof(aggregatedRangeProof *aggregatedrange.AggregatedRangeProof) {proof.aggregatedRangeProof = aggregatedRangeProof}
-func (proof *PaymentProof) SetSerialNumberProof(serialNumberProof []*serialnumberprivacy.SNPrivacyProof) {proof.serialNumberProof = serialNumberProof}
-func (proof *PaymentProof) SetOneOfManyProof(oneOfManyProof []*oneoutofmany.OneOutOfManyProof) {proof.oneOfManyProof = oneOfManyProof}
+func (proof *PaymentProof) SetCommitmentShardID(commitmentShardID *operation.Point) {
+	proof.commitmentInputShardID = commitmentShardID
+}
+func (proof *PaymentProof) SetCommitmentInputSND(commitmentInputSND []*operation.Point) {
+	proof.commitmentInputSND = commitmentInputSND
+}
+func (proof *PaymentProof) SetAggregatedRangeProof(aggregatedRangeProof *aggregatedrange.AggregatedRangeProof) {
+	proof.aggregatedRangeProof = aggregatedRangeProof
+}
+func (proof *PaymentProof) SetSerialNumberProof(serialNumberProof []*serialnumberprivacy.SNPrivacyProof) {
+	proof.serialNumberProof = serialNumberProof
+}
+func (proof *PaymentProof) SetOneOfManyProof(oneOfManyProof []*oneoutofmany.OneOutOfManyProof) {
+	proof.oneOfManyProof = oneOfManyProof
+}
+func (proof *PaymentProof) SetSerialNumberNoPrivacyProof(serialNumberNoPrivacyProof []*serialnumbernoprivacy.SNNoPrivacyProof) {
+	proof.serialNumberNoPrivacyProof = serialNumberNoPrivacyProof
+}
+func (proof *PaymentProof) SetCommitmentInputValue(commitmentInputValue []*operation.Point) {
+	proof.commitmentInputValue = commitmentInputValue
+}
 
 func (proof *PaymentProof) SetInputCoins(v []coin.PlainCoin) error {
 	var err error
@@ -854,13 +872,13 @@ func (proof PaymentProof) ValidateSanity() (bool, error) {
 
 		//check commitment in output coins and bulletproof
 		cmsValues := proof.aggregatedRangeProof.GetCommitments()
-		if len(proof.commitmentOutputValue)!=len(cmsValues){
+		if len(proof.commitmentOutputValue) != len(cmsValues) {
 			return false, errors.New("Commitment length mismatch")
 		}
 
 		for i := 0; i < len(proof.commitmentOutputValue); i += 1 {
 			//check if output coins' commitment is the same as in the proof
-			if !operation.IsPointEqual(cmsValues[i], proof.commitmentOutputValue[i]){
+			if !operation.IsPointEqual(cmsValues[i], proof.commitmentOutputValue[i]) {
 				return false, errors.New("Coin & Proof Commitments mismatch")
 			}
 		}
@@ -872,7 +890,7 @@ func (proof PaymentProof) ValidateSanity() (bool, error) {
 		}
 		for i := 0; i < len(proof.GetSerialNumberProof()); i++ {
 			// check cmSK of input coin is equal to comSK in serial number proof
-			if !operation.IsPointEqual(proof.GetCommitmentInputSecretKey(), proof.GetSerialNumberProof()[i].GetComSK()){
+			if !operation.IsPointEqual(proof.GetCommitmentInputSecretKey(), proof.GetSerialNumberProof()[i].GetComSK()) {
 				Logger.Log.Errorf("ComSK in SNproof is not equal to commitment of private key")
 				return false, errors.New("comSK of SNProof is not comSK of input coins")
 			}
@@ -947,7 +965,7 @@ func (proof PaymentProof) ValidateSanity() (bool, error) {
 	if !isPrivacy {
 		for i := 0; i < len(proof.GetSerialNumberNoPrivacyProof()); i++ {
 			// check PK of input coin is equal to vKey in serial number proof
-			if !operation.IsPointEqual(proof.GetInputCoins()[i].GetPublicKey(), proof.GetSerialNumberNoPrivacyProof()[i].GetVKey()){
+			if !operation.IsPointEqual(proof.GetInputCoins()[i].GetPublicKey(), proof.GetSerialNumberNoPrivacyProof()[i].GetVKey()) {
 				Logger.Log.Errorf("VKey in SNProof is not equal public key of sender")
 				return false, errors.New("VKey of SNProof is not public key of sender")
 			}
