@@ -7,7 +7,7 @@ import (
 	"github.com/incognitochain/incognito-chain/peerv2/proto"
 	"github.com/incognitochain/incognito-chain/wire"
 	"github.com/libp2p/go-libp2p-core/peer"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	pubsub "github.com/incognitochain/go-libp2p-pubsub"
 	"github.com/pkg/errors"
 )
 

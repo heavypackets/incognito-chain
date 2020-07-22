@@ -28,6 +28,7 @@ require (
 	github.com/gorilla/websocket v1.4.0
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/incognitochain/go-libp2p-grpc v0.0.0-20181024123959-d1f24bf49b50
+	github.com/incognitochain/go-libp2p-pubsub v0.1.2-0.20200225083905-33fafb016ae1
 	github.com/ipfs/go-cid v0.0.3 // indirect
 	github.com/jbenet/goprocess v0.1.3
 	github.com/jessevdk/go-flags v1.4.0
@@ -41,7 +42,6 @@ require (
 	github.com/libp2p/go-libp2p-peer v0.2.0
 	github.com/libp2p/go-libp2p-peerstore v0.1.3
 	github.com/libp2p/go-libp2p-protocol v0.1.0 // indirect
-	github.com/libp2p/go-libp2p-pubsub v0.1.1
 	github.com/libp2p/go-libp2p-swarm v0.2.1
 	github.com/libp2p/go-openssl v0.0.3 // indirect
 	github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e // indirect
