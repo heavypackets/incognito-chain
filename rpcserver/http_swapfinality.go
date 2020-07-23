@@ -16,6 +16,8 @@ import (
 )
 
 type finalityProof struct {
+	swapID uint64
+
 	inst     string
 	instPath []string
 	id       int64
@@ -62,12 +64,17 @@ func (httpServer *HttpServer) handleGetFinalityProof(params interface{}, closeCh
 	}
 
 	// Build proof
-	proof1, err := buildFinalityProofForBlock(block1, httpServer.config.ConsensusEngine)
+	stateDB, err := getBlockStateDBFromBeststate(bc, shardID, httpServer.blockService)
 	if err != nil {
 		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, err)
 	}
 
-	proof2, err := buildFinalityProofForBlock(block2, httpServer.config.ConsensusEngine)
+	proof1, err := buildFinalityProofForBlock(block1, shardID, stateDB, httpServer.config.ConsensusEngine)
+	if err != nil {
+		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, err)
+	}
+
+	proof2, err := buildFinalityProofForBlock(block2, shardID, stateDB, httpServer.config.ConsensusEngine)
 	if err != nil {
 		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, err)
 	}
@@ -121,7 +128,12 @@ func getSingleShardBlockByHeight(bc *blockchain.BlockChain, height uint64, shard
 	return block, nil
 }
 
-func buildFinalityProofForBlock(blk block, ce ConsensusEngine) (*finalityProof, error) {
+func buildFinalityProofForBlock(
+	blk block,
+	shardID byte,
+	stateDB *statedb.StateDB,
+	ce ConsensusEngine,
+) (*finalityProof, error) {
 	// Build merkle proof for instruction
 	insts := blk.Instructions()
 	instID, err := findBlockMerkleRootInst(insts)
@@ -144,7 +156,16 @@ func buildFinalityProofForBlock(blk block, ce ConsensusEngine) (*finalityProof, 
 	for _, s := range bSigs {
 		sigs = append(sigs, hex.EncodeToString(s))
 	}
+
+	// Get swapID of the committee signed this block
+	swapID, err := statedb.GetSwapIDForBlock(stateDB, shardID, blk.GetHeight())
+	if err != nil {
+		return nil, err
+	}
+
 	proof := &finalityProof{
+		swapID: swapID,
+
 		inst:     inst,
 		instPath: instProof.getPath(),
 		id:       int64(instID),
@@ -166,6 +187,7 @@ func findBlockMerkleRootInst(insts [][]string) (int, error) {
 
 func buildFinalityProofResult(proof1, proof2 *finalityProof) jsonresult.GetFinalityProof {
 	return jsonresult.GetFinalityProof{
+		SwapID:       proof1.swapID,
 		Instructions: [2]string{proof1.inst, proof2.inst},
 		IDs:          [2]int64{proof1.id, proof2.id},
 		InstPaths:    [2][]string{proof1.instPath, proof2.instPath},
@@ -200,23 +222,7 @@ func (httpServer *HttpServer) handleGetAncestorProof(params interface{}, closeCh
 	}
 	anchorBlockHeight := uint64(anchorBlockHeightParam)
 
-	bc := httpServer.GetBlockchain()
-	var merkleBlockRootHash common.Hash
-	var db incdb.Database
-	var err error
-	if shardID == byte(255) {
-		db = bc.GetBeaconChainDatabase()
-		merkleBlockRootHash, err = rawdbv2.GetBeaconBlockRootHash(db, anchorBlockHeight)
-	} else {
-		db = bc.GetShardChainDatabase(shardID)
-		merkleBlockRootHash, err = rawdbv2.GetShardBlockRootHash(db, shardID, anchorBlockHeight)
-	}
-	if err != nil {
-		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, err)
-	}
-
-	dbAccessWarper := statedb.NewDatabaseAccessWarper(db)
-	stateDB, err := statedb.NewWithPrefixTrie(merkleBlockRootHash, dbAccessWarper)
+	stateDB, err := getBlockStateDBWithHeight(httpServer.GetBlockchain(), shardID, anchorBlockHeight)
 	if err != nil {
 		return nil, rpcservice.NewRPCError(rpcservice.RPCInvalidParamsError, err)
 	}
@@ -240,4 +246,53 @@ func buildAncestorProof(path [][]byte, id uint64) jsonresult.GetAncestorProof {
 		proof.Path = append(proof.Path, hex.EncodeToString(h))
 	}
 	return proof
+}
+
+func getBlockStateDB(bc *blockchain.BlockChain, shardID byte, rootHash common.Hash) (*statedb.StateDB, error) {
+	var db incdb.Database
+	if shardID == byte(255) {
+		db = bc.GetBeaconChainDatabase()
+	} else {
+		db = bc.GetShardChainDatabase(shardID)
+	}
+
+	dbAccessWarper := statedb.NewDatabaseAccessWarper(db)
+	stateDB, err := statedb.NewWithPrefixTrie(rootHash, dbAccessWarper)
+	if err != nil {
+		return nil, fmt.Errorf("error initiating trie with rootHash = %s: %w", rootHash.String(), err)
+	}
+	return stateDB, nil
+}
+
+func getBlockStateDBWithHeight(bc *blockchain.BlockChain, shardID byte, blockHeight uint64) (*statedb.StateDB, error) {
+	var merkleBlockRootHash common.Hash
+	var err error
+	if shardID == byte(255) {
+		merkleBlockRootHash, err = rawdbv2.GetBeaconBlockRootHash(bc.GetBeaconChainDatabase(), blockHeight)
+	} else {
+		merkleBlockRootHash, err = rawdbv2.GetShardBlockRootHash(bc.GetShardChainDatabase(shardID), shardID, blockHeight)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error getting block root hash for shardID = %v, height = %v: %w", shardID, blockHeight, err)
+	}
+
+	return getBlockStateDB(bc, shardID, merkleBlockRootHash)
+}
+
+func getBlockStateDBFromBeststate(bc *blockchain.BlockChain, shardID byte, blockService *rpcservice.BlockService) (*statedb.StateDB, error) {
+	var blockMerkleRoot common.Hash
+	if shardID != byte(255) {
+		bestState, err := blockService.GetShardBestStateByShardID(shardID)
+		if err != nil {
+			return nil, fmt.Errorf("error getting shard best state for shardID = %d: %w", shardID, err)
+		}
+		blockMerkleRoot = bestState.BlockStateDBRootHash
+	} else {
+		bestState, err := blockService.GetBeaconBestState()
+		if err != nil {
+			return nil, fmt.Errorf("error getting beacon best state: %w", err)
+		}
+		blockMerkleRoot = bestState.BlockStateDBRootHash
+	}
+	return getBlockStateDB(bc, shardID, blockMerkleRoot)
 }

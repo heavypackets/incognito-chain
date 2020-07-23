@@ -56,6 +56,7 @@ func updateSwapID(
 	}
 
 	// Update swapID for next block
+	fmt.Printf("[db] storing SWAPID = %v for block = %d insts = %v\n", swapID, newHeight+1, insts)
 	if err := statedb.StoreSwapIDForBlock(stateDB, shardID, newHeight+1, swapID); err != nil {
 		return fmt.Errorf("error storing swapID for shardID = %v, newHeight = %v, swapID = %v: %w", shardID, newHeight, swapID, err)
 		return NewBlockChainError(StoreShardBlockError, err)

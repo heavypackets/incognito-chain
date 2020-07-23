@@ -18,6 +18,7 @@ type GetInstructionProof struct {
 
 // GetFinalityProof contains the proof that 2 blocks N and N+1 is valid and N is finalled
 type GetFinalityProof struct {
+	SwapID       uint64
 	Instructions [2]string   // BlockMerkleRootMeta instruction
 	InstPaths    [2][]string // Proofs that the above insts are in the blocks
 	IDs          [2]int64    // Index of the instruction in the block

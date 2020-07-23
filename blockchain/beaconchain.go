@@ -163,7 +163,7 @@ func (chain *BeaconChain) CreateNewBlockFromOldBlock(oldBlock common.BlockInterf
 	if err != nil {
 		return nil, err
 	}
-	newBlock.(*ShardBlock).Header.Timestamp = oldBlock.GetProduceTime() // Set produce time as previous one
+	newBlock.(*BeaconBlock).Header.Timestamp = oldBlock.GetProduceTime() // Set produce time as previous one
 	return newBlock, nil
 
 	// b, _ := json.Marshal(oldBlock)
