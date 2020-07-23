@@ -1222,13 +1222,13 @@ func (stateDB *StateDB) getBlockMerkleNode(key common.Hash) (common.Hash, bool, 
 	return common.Hash{}, false, nil
 }
 
-func (stateDB *StateDB) getLatestSwapID(key common.Hash) (uint64, bool, error) {
-	latestSwapIDObject, err := stateDB.getStateObject(LatestSwapIDObjectType, key)
+func (stateDB *StateDB) getSwapIDForBlock(key common.Hash) (uint64, bool, error) {
+	swapIDObject, err := stateDB.getStateObject(SwapIDForBlockObjectType, key)
 	if err != nil {
 		return 0, false, err
 	}
-	if latestSwapIDObject != nil {
-		return latestSwapIDObject.GetValue().(uint64), true, nil
+	if swapIDObject != nil {
+		return swapIDObject.GetValue().(uint64), true, nil
 	}
 	return 0, false, nil
 }

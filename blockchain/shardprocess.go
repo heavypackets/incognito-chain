@@ -1073,9 +1073,20 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	if err != nil {
 		return NewBlockChainError(StoreShardBlockError, err)
 	}
-	// blocks merkle tree
 	var blockRootHash common.Hash
 	if shardID == common.BridgeShardID {
+		// Update swapID
+		if err := updateSwapID(
+			newShardState.blockStateDB,
+			shardID,
+			shardBlock.Header.Height,
+			shardBlock.Body.Instructions,
+			metadata.BridgeSwapConfirmMeta,
+		); err != nil {
+			return NewBlockChainError(StoreShardBlockError, err)
+		}
+
+		// Blocks merkle tree
 		if blockRootHash, err = addToBlockMerkle(
 			newShardState.blockStateDB,
 			shardID,
@@ -1084,10 +1095,7 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 		); err != nil {
 			return NewBlockChainError(StoreShardBlockError, err)
 		}
-		err = newShardState.blockStateDB.Database().TrieDB().Commit(blockRootHash, false)
-		if err != nil {
-			return NewBlockChainError(StoreShardBlockError, err)
-		}
+
 		newShardState.BlockStateDBRootHash = blockRootHash
 	}
 	// consensus root hash

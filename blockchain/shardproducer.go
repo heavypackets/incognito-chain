@@ -587,10 +587,11 @@ func (blockchain *BlockChain) generateInstruction(view *ShardBestState, shardID 
 		// Generate instruction storing merkle root of validators pubkey and send to beacon
 		bridgeID := byte(common.BridgeShardID)
 		if shardID == bridgeID {
-			swapID, err := statedb.GetLatestSwapID(view.blockStateDB, shardID)
+			swapID, err := statedb.GetSwapIDForBlock(view.blockStateDB, shardID, view.ShardHeight)
 			if err != nil {
-				swapID = 0
+				return instructions, shardPendingValidator, shardCommittee, fmt.Errorf("error getting swapID for shardID = %v, block = %v: %w", shardID, view.ShardHeight, err)
 			}
+			fmt.Println("[db] latest bridge SWAPID:", swapID)
 			blockHeight := view.ShardHeight + 1
 			bridgeSwapConfirmInst, err = buildBridgeSwapConfirmInstruction(shardCommittee, blockHeight, swapID+1)
 			if err != nil {

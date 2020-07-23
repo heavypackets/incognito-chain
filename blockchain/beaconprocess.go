@@ -13,6 +13,7 @@ import (
 
 	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
+	"github.com/incognitochain/incognito-chain/metadata"
 
 	"github.com/incognitochain/incognito-chain/blockchain/btc"
 	"github.com/incognitochain/incognito-chain/common"
@@ -1477,17 +1478,23 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 		return err
 	}
 	newBestState.SlashStateDBRootHash = slashRootHash
-	// blocks merkle tree
+	// Update swapID
+	if err := updateSwapID(
+		newBestState.blockStateDB,
+		byte(255),
+		beaconBlock.Header.Height,
+		beaconBlock.Body.Instructions,
+		metadata.BeaconSwapConfirmMeta,
+	); err != nil {
+		return NewBlockChainError(StoreBeaconBlockError, err)
+	}
+	// Blocks merkle tree
 	blockRootHash, err := addToBlockMerkle(
 		newBestState.blockStateDB,
 		byte(255),
 		beaconBlock.Header.Height-1,
 		beaconBlock.Header.PreviousBlockHash,
 	)
-	if err != nil {
-		return NewBlockChainError(StoreBeaconBlockError, err)
-	}
-	err = newBestState.blockStateDB.Database().TrieDB().Commit(blockRootHash, false)
 	if err != nil {
 		return NewBlockChainError(StoreBeaconBlockError, err)
 	}

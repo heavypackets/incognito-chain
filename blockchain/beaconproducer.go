@@ -628,9 +628,9 @@ func (beaconBestState *BeaconBestState) GenerateInstruction(
 		if err != nil {
 			Logger.log.Error(err)
 		}
-		swapID, err := statedb.GetLatestSwapID(beaconBestState.blockStateDB, byte(255))
+		swapID, err := statedb.GetSwapIDForBlock(beaconBestState.blockStateDB, byte(255), newBeaconHeight-1)
 		if err != nil {
-			swapID = 0
+			return [][]string{}, fmt.Errorf("error getting swapID for beacon, block = %v: %w", newBeaconHeight-1, err)
 		}
 		if common.IndexOfUint64(newBeaconHeight/chainParamEpoch, blockchain.config.ChainParams.EpochBreakPointSwapNewKey) > -1 {
 			epoch := newBeaconHeight / chainParamEpoch

@@ -142,60 +142,61 @@ func (c BlockMerkleObject) IsEmpty() bool {
 	return reflect.DeepEqual(temp, c.blockHash)
 }
 
-type LatestSwapIDObject struct {
+type SwapIDForBlockObject struct {
 	DefaultStateObject
 
 	id uint64
 }
 
-func newLatestSwapIDObject(db *StateDB, hash common.Hash) *LatestSwapIDObject {
-	return &LatestSwapIDObject{
+func newSwapIDForBlockObject(db *StateDB, hash common.Hash) *SwapIDForBlockObject {
+	return &SwapIDForBlockObject{
 		DefaultStateObject: DefaultStateObject{
 			version:       defaultVersion,
 			db:            db,
 			publicKeyHash: hash,
-			objectType:    LatestSwapIDObjectType,
+			objectType:    SwapIDForBlockObjectType,
 			deleted:       false,
 		},
 		id: 0,
 	}
 }
 
-func newLatestSwapIDObjectWithValue(db *StateDB, key common.Hash, data interface{}) (*LatestSwapIDObject, error) {
-	var newLatestSwapID uint64
+func newSwapIDForBlockObjectWithValue(db *StateDB, key common.Hash, data interface{}) (*SwapIDForBlockObject, error) {
+	var newSwapIDForBlock uint64
 	if id, ok := data.(uint64); ok {
-		newLatestSwapID = id
+		newSwapIDForBlock = id
 	} else if dataBytes, ok := data.([]byte); ok {
-		err := json.Unmarshal(dataBytes, &newLatestSwapID)
+		err := json.Unmarshal(dataBytes, &newSwapIDForBlock)
 		if err != nil {
-			return nil, fmt.Errorf("%+v, unmarshal err %+v", ErrInvalidLatestSwapIDType, err)
+			return nil, fmt.Errorf("%+v, unmarshal err %+v", ErrInvalidSwapIDForBlockType, err)
 		}
 	} else {
-		return nil, fmt.Errorf("%+v, got type %+v", ErrInvalidLatestSwapIDType, reflect.TypeOf(data))
+		return nil, fmt.Errorf("%+v, got type %+v", ErrInvalidSwapIDForBlockType, reflect.TypeOf(data))
 	}
-	return &LatestSwapIDObject{
+	return &SwapIDForBlockObject{
 		DefaultStateObject: DefaultStateObject{
 			version:       defaultVersion,
 			db:            db,
 			publicKeyHash: key,
-			objectType:    LatestSwapIDObjectType,
+			objectType:    SwapIDForBlockObjectType,
 			deleted:       false,
 		},
-		id: newLatestSwapID,
+		id: newSwapIDForBlock,
 	}, nil
 }
 
-func GenerateLatestSwapIDObjectKey(shardID byte) common.Hash {
-	data := append(swapIDPrefix, []byte{shardID}...)
+func GenerateSwapIDForBlockObjectKey(shardID byte, block uint64) common.Hash {
+	data := append(swapIDPrefix, shardID)
+	data = append(data, common.Uint64ToBytes(block)...)
 	h := common.HashH(data)
 	return h
 }
 
-func (c LatestSwapIDObject) GetValue() interface{} {
+func (c SwapIDForBlockObject) GetValue() interface{} {
 	return c.id
 }
 
-func (c LatestSwapIDObject) GetValueBytes() []byte {
+func (c SwapIDForBlockObject) GetValueBytes() []byte {
 	data := c.GetValue()
 	value, err := json.Marshal(data)
 	if err != nil {
@@ -204,16 +205,16 @@ func (c LatestSwapIDObject) GetValueBytes() []byte {
 	return value
 }
 
-func (c *LatestSwapIDObject) SetValue(data interface{}) error {
+func (c *SwapIDForBlockObject) SetValue(data interface{}) error {
 	id, ok := data.(uint64)
 	if !ok {
-		return fmt.Errorf("%+v, got type %+v", ErrInvalidLatestSwapIDType, reflect.TypeOf(data))
+		return fmt.Errorf("%+v, got type %+v", ErrInvalidSwapIDForBlockType, reflect.TypeOf(data))
 	}
 	c.id = id
 	return nil
 }
 
 // value is either default or nil
-func (c LatestSwapIDObject) IsEmpty() bool {
+func (c SwapIDForBlockObject) IsEmpty() bool {
 	return c.id == 0
 }

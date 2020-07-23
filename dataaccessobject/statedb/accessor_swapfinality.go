@@ -26,22 +26,22 @@ func GetBlockMerkleNode(stateDB *StateDB, shardID, level byte, index uint64) (co
 	return node, nil
 }
 
-func StoreLatestSwapID(stateDB *StateDB, shardID byte, id uint64) error {
-	key := GenerateLatestSwapIDObjectKey(shardID)
-	if err := stateDB.SetStateObject(LatestSwapIDObjectType, key, id); err != nil {
-		return NewStatedbError(StoreLatestSwapIDError, err)
+func StoreSwapIDForBlock(stateDB *StateDB, shardID byte, block, id uint64) error {
+	key := GenerateSwapIDForBlockObjectKey(shardID, block)
+	if err := stateDB.SetStateObject(SwapIDForBlockObjectType, key, id); err != nil {
+		return NewStatedbError(StoreSwapIDError, err)
 	}
 	return nil
 }
 
-func GetLatestSwapID(stateDB *StateDB, shardID byte) (uint64, error) {
-	key := GenerateLatestSwapIDObjectKey(shardID)
-	id, has, err := stateDB.getLatestSwapID(key)
+func GetSwapIDForBlock(stateDB *StateDB, shardID byte, block uint64) (uint64, error) {
+	key := GenerateSwapIDForBlockObjectKey(shardID, block)
+	id, has, err := stateDB.getSwapIDForBlock(key)
 	if err != nil {
-		return 0, NewStatedbError(GetLatestSwapIDError, err)
+		return 0, NewStatedbError(GetSwapIDError, err)
 	}
 	if !has {
-		return 0, NewStatedbError(GetLatestSwapIDError, fmt.Errorf("latest swap id not found for shardID = %v", shardID))
+		return 0, nil
 	}
 	return id, nil
 }
