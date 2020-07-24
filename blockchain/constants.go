@@ -31,7 +31,7 @@ const (
 	NumberOfFixedBlockValidators  = 4
 	BEACON_ID                     = -1         // CommitteeID of beacon chain, used for highway
 	ValidateTimeForSpamRequestTxs = 1581565837 // GMT: Thursday, February 13, 2020 3:50:37 AM. From this time, block will be checked spam request-reward tx
-	TransactionBatchSize          = 30
+	TransactionBatchSize          = 40
 	SpareTime                     = 1000 // in mili-second
 )
 
