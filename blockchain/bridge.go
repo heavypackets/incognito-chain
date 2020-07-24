@@ -38,8 +38,13 @@ func DecodeInstruction(inst []string) ([]byte, error) {
 		}
 
 	case strconv.Itoa(metadata.BurningConfirmMeta), strconv.Itoa(metadata.BurningConfirmForDepositToSCMeta):
-		var err error
 		flatten, err = decodeBurningConfirmInst(inst)
+		if err != nil {
+			return nil, err
+		}
+
+	case strconv.Itoa(metadata.BlockMerkleRootMeta):
+		flatten, err = decodeBlockMerkleRootInst(inst)
 		if err != nil {
 			return nil, err
 		}
@@ -106,6 +111,26 @@ func parseAndPadAddress(instContent string) ([]byte, error) {
 		addrs = append(addrs, addr...)
 	}
 	return addrs, nil
+}
+
+func decodeBlockMerkleRootInst(inst []string) ([]byte, error) {
+	if len(inst) < 3 {
+		return nil, errors.New("invalid length of BlockMerkleRoot inst")
+	}
+	m, errMeta := strconv.Atoi(inst[0])
+	root, _, errRoot := base58.Base58Check{}.Decode(inst[1])
+	proposeTime, _, errTime := base58.Base58Check{}.Decode(inst[2])
+	if err := common.CheckError(errMeta, errRoot, errTime); err != nil {
+		err = errors.Wrapf(err, "inst: %+v", inst)
+		BLogger.log.Error(err)
+		return nil, err
+	}
+
+	flatten := []byte{}
+	flatten = append(flatten, byte(m))
+	flatten = append(flatten, toBytes32BigEndian(root)...)
+	flatten = append(flatten, toBytes32BigEndian(proposeTime)...)
+	return flatten, nil
 }
 
 // decodeBurningConfirmInst decodes and flattens a BurningConfirm instruction

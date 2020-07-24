@@ -142,6 +142,7 @@ var bridgeMetas = []string{
 	strconv.Itoa(BridgeSwapConfirmMeta),
 	strconv.Itoa(BurningConfirmMeta),
 	strconv.Itoa(BurningConfirmForDepositToSCMeta),
+	strconv.Itoa(BlockMerkleRootMeta),
 }
 
 func HasBridgeInstructions(instructions [][]string) bool {
