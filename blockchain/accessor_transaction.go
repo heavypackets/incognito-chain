@@ -295,7 +295,7 @@ func (blockchain *BlockChain) GetListDecryptedOutputCoinsVer2ByKeyset(keyset *in
 		return nil, err
 	}
 	// loop on all outputcoin to decrypt data
-	transactionStateDB := blockchain.GetBestStateShard(shardID).transactionStateDB
+	transactionStateDB := blockchain.GetBestStateShard(shardID).GetCopiedTransactionStateDB()
 	results := make([]coin.PlainCoin, 0)
 	for _, item := range outCoinsInBytes {
 		outCoin, err := coin.NewCoinFromByte(item)
@@ -322,7 +322,7 @@ func (blockchain *BlockChain) GetListDecryptedOutputCoinsVer1ByKeyset(keyset *in
 		return nil, err
 	}
 	// loop on all outputcoin to decrypt data
-	transactionStateDB := blockchain.GetBestStateShard(shardID).transactionStateDB
+	transactionStateDB := blockchain.GetBestStateShard(shardID).GetCopiedTransactionStateDB()
 	results := make([]coin.PlainCoin, 0)
 	for _, item := range outCoinsInBytes {
 		outCoin, err := coin.NewCoinFromByte(item)
@@ -348,7 +348,7 @@ func (blockchain *BlockChain) GetListDecryptedOutputCoinsVer1ByKeyset(keyset *in
 func (blockchain *BlockChain) GetListDecryptedOutputCoinsByKeyset(keyset *incognitokey.KeySet, shardID byte, tokenID *common.Hash, shardHeight uint64) ([]coin.PlainCoin, error) {
 	var outCoinsInBytes [][]byte
 	var err error
-	transactionStateDB := blockchain.GetBestStateShard(shardID).transactionStateDB
+	transactionStateDB := blockchain.GetBestStateShard(shardID).GetCopiedTransactionStateDB()
 	if keyset == nil {
 		return nil, NewBlockChainError(GetListDecryptedOutputCoinsByKeysetError, fmt.Errorf("invalid key set, got keyset %+v", keyset))
 	}
