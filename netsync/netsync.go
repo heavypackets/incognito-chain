@@ -1,6 +1,7 @@
 package netsync
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -265,7 +266,8 @@ func (netSync *NetSync) QueueMessage(peer *peer.Peer, msg wire.Message, done cha
 
 // handleTxMsg handles transaction messages from all peers.
 func (netSync *NetSync) handleMessageTx(msg *wire.MessageTx, beaconHeight int64) {
-	Logger.log.Debug("Handling new message tx")
+	loggerv2 := common.NewLogger(common.WithRequestID(context.Background(), msg), logger)
+	loggerv2.Debug("Handling new message tx")
 	if !netSync.handleTxWithRole(msg.Transaction) {
 		return
 	}
@@ -281,7 +283,7 @@ func (netSync *NetSync) handleMessageTx(msg *wire.MessageTx, beaconHeight int64)
 				metrics.Tag:              metrics.TxHashTag,
 				metrics.TagValue:         msg.Transaction.Hash().String(),
 			})*/
-			Logger.log.Debugf("there is hash of transaction %s", hash.String())
+			loggerv2.Debugf("there is hash of transaction %s", hash.String())
 			err := netSync.config.Server.PushMessageToAll(msg)
 			if err != nil {
 				Logger.log.Error(err)
@@ -290,7 +292,7 @@ func (netSync *NetSync) handleMessageTx(msg *wire.MessageTx, beaconHeight int64)
 			}
 		}
 	}
-	Logger.log.Debug("Transaction %+v found in cache", *msg.Transaction.Hash())
+	loggerv2.Debug("Transaction %+v found in cache", *msg.Transaction.Hash())
 }
 
 // handleTxMsg handles transaction messages from all peers.

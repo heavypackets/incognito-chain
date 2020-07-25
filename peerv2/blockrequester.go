@@ -235,14 +235,13 @@ func (c *BlockRequester) StreamBlockByHash(
 	req *proto.BlockByHashRequest,
 ) (proto.HighwayService_StreamBlockByHashClient, error) {
 
-	uuid := genUUID()
-	Logger.Infof("[stream] Requesting stream block type %v, hashes [%v..%v] len %v, from %v to %v, uuid = %s", req.Type, req.Hashes[0], req.Hashes[len(req.Hashes)-1], len(req.Hashes), req.From, req.To, uuid)
+	Logger.Infof("[stream] Requesting stream block type %v, hashes [%v..%v] len %v, from %v to %v, uuid = %s", req.Type, req.Hashes[0], req.Hashes[len(req.Hashes)-1], len(req.Hashes), req.From, req.To, req.UUID)
 	c.RLock()
 	defer c.RUnlock()
 	if !c.ready() {
 		return nil, errors.New("requester not ready")
 	}
-	req.UUID = uuid
+	// req.UUID = uuid
 	client := proto.NewHighwayServiceClient(c.conn)
 	stream, err := client.StreamBlockByHash(ctx, req, grpc.MaxCallRecvMsgSize(MaxCallRecvMsgSize))
 	if err != nil {

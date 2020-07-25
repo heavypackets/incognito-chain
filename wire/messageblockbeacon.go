@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 
 	"github.com/incognitochain/incognito-chain/blockchain"
-	"github.com/incognitochain/incognito-chain/incognitokey"
 	"github.com/incognitochain/incognito-chain/common"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/incognitochain/incognito-chain/incognitokey"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 // const (
@@ -15,6 +15,7 @@ import (
 
 type MessageBlockBeacon struct {
 	Block *blockchain.BeaconBlock
+	UUID  string
 }
 
 func (msg *MessageBlockBeacon) Hash() string {
@@ -53,4 +54,12 @@ func (msg *MessageBlockBeacon) SignMsg(_ *incognitokey.KeySet) error {
 
 func (msg *MessageBlockBeacon) VerifyMsgSanity() error {
 	return nil
+}
+
+func (msg *MessageBlockBeacon) GetUUID() string {
+	return msg.UUID
+}
+
+func (msg *MessageBlockBeacon) SetUUID(uuid string) {
+	msg.UUID = uuid
 }

@@ -3,8 +3,9 @@ package wire
 import (
 	"encoding/json"
 
-	"github.com/incognitochain/incognito-chain/incognitokey"
+	"github.com/google/uuid"
 	"github.com/incognitochain/incognito-chain/common"
+	"github.com/incognitochain/incognito-chain/incognitokey"
 	peer "github.com/libp2p/go-libp2p-peer"
 )
 
@@ -57,4 +58,11 @@ func (msg *MessageGetCrossShard) SignMsg(_ *incognitokey.KeySet) error {
 
 func (msg *MessageGetCrossShard) VerifyMsgSanity() error {
 	return nil
+}
+
+func (msg *MessageGetCrossShard) GetUUID() string {
+	return uuid.New().String()
+}
+
+func (msg *MessageGetCrossShard) SetUUID(uuid string) {
 }

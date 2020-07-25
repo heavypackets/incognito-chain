@@ -4,9 +4,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
-	"github.com/incognitochain/incognito-chain/incognitokey"
+	"github.com/google/uuid"
 	"github.com/incognitochain/incognito-chain/common"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/incognitochain/incognito-chain/incognitokey"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 type MessageMsgCheckResp struct {
@@ -53,4 +54,11 @@ func (msg *MessageMsgCheckResp) SignMsg(_ *incognitokey.KeySet) error {
 
 func (msg *MessageMsgCheckResp) VerifyMsgSanity() error {
 	return nil
+}
+
+func (msg *MessageMsgCheckResp) GetUUID() string {
+	return uuid.New().String()
+}
+
+func (msg *MessageMsgCheckResp) SetUUID(uuid string) {
 }

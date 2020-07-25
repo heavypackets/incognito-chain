@@ -19,6 +19,7 @@ type MessageBFT struct {
 	ChainKey  string
 	Timestamp int64
 	TimeSlot  int64
+	UUID      string
 }
 
 func (msg *MessageBFT) Hash() string {
@@ -57,4 +58,12 @@ func (msg *MessageBFT) SignMsg(keySet *incognitokey.KeySet) error {
 
 func (msg *MessageBFT) VerifyMsgSanity() error {
 	return nil
+}
+
+func (msg *MessageBFT) GetUUID() string {
+	return msg.UUID
+}
+
+func (msg *MessageBFT) SetUUID(uuid string) {
+	msg.UUID = uuid
 }

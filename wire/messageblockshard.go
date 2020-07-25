@@ -6,11 +6,12 @@ import (
 	"github.com/incognitochain/incognito-chain/blockchain"
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/incognitokey"
-	"github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 type MessageBlockShard struct {
 	Block *blockchain.ShardBlock
+	UUID  string
 }
 
 func (msg *MessageBlockShard) Hash() string {
@@ -49,4 +50,12 @@ func (msg *MessageBlockShard) SignMsg(_ *incognitokey.KeySet) error {
 
 func (msg *MessageBlockShard) VerifyMsgSanity() error {
 	return nil
+}
+
+func (msg *MessageBlockShard) GetUUID() string {
+	return msg.UUID
+}
+
+func (msg *MessageBlockShard) SetUUID(uuid string) {
+	msg.UUID = uuid
 }

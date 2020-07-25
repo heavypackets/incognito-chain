@@ -6,9 +6,10 @@ import (
 
 	"time"
 
-	"github.com/incognitochain/incognito-chain/incognitokey"
+	"github.com/google/uuid"
 	"github.com/incognitochain/incognito-chain/common"
-	"github.com/libp2p/go-libp2p-peer"
+	"github.com/incognitochain/incognito-chain/incognitokey"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 type MessageVerAck struct {
@@ -53,4 +54,11 @@ func (msg *MessageVerAck) SignMsg(_ *incognitokey.KeySet) error {
 
 func (msg *MessageVerAck) VerifyMsgSanity() error {
 	return nil
+}
+
+func (msg *MessageVerAck) GetUUID() string {
+	return uuid.New().String()
+}
+
+func (msg *MessageVerAck) SetUUID(uuid string) {
 }

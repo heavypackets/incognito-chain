@@ -4,10 +4,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
-	"github.com/incognitochain/incognito-chain/incognitokey"
 	"github.com/incognitochain/incognito-chain/common"
+	"github.com/incognitochain/incognito-chain/incognitokey"
 	"github.com/incognitochain/incognito-chain/metadata"
-	"github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 const (
@@ -16,6 +16,7 @@ const (
 
 type MessageTxPrivacyToken struct {
 	Transaction metadata.Transaction
+	UUID        string
 }
 
 func (msg *MessageTxPrivacyToken) Hash() string {
@@ -55,4 +56,12 @@ func (msg *MessageTxPrivacyToken) SignMsg(_ *incognitokey.KeySet) error {
 
 func (msg *MessageTxPrivacyToken) VerifyMsgSanity() error {
 	return nil
+}
+
+func (msg *MessageTxPrivacyToken) GetUUID() string {
+	return msg.UUID
+}
+
+func (msg *MessageTxPrivacyToken) SetUUID(uuid string) {
+	msg.UUID = uuid
 }

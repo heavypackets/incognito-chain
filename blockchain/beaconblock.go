@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/incognitochain/incognito-chain/common"
 )
 
@@ -16,6 +17,7 @@ type BeaconBlock struct {
 	ValidationData string `json:"ValidationData"`
 	Body           BeaconBody
 	Header         BeaconHeader
+	UUID           string `json:"-"`
 }
 
 func (beaconBlock *BeaconBlock) GetVersion() int {
@@ -79,6 +81,12 @@ func (beaconBlock *BeaconBlock) UnmarshalJSON(data []byte) error {
 	beaconBlock.ValidationData = tempBeaconBlock.ValidationData
 	beaconBlock.Header = tempBeaconBlock.Header
 	beaconBlock.Body = tempBeaconBlock.Body
+	id, err := uuid.FromBytes(beaconBlock.Hash().Bytes())
+	if err != nil {
+		beaconBlock.UUID = uuid.New().String()
+	} else {
+		beaconBlock.UUID = id.String()
+	}
 	return nil
 }
 
@@ -111,4 +119,11 @@ func (beaconBlock BeaconBlock) GetProducerPubKeyStr() string {
 
 func (beaconBlock BeaconBlock) GetConsensusType() string {
 	return beaconBlock.Header.ConsensusType
+}
+func (beaconBlock *BeaconBlock) GetUUID() string {
+	return beaconBlock.UUID
+}
+
+func (beaconBlock *BeaconBlock) SetUUID(uuid string) {
+	beaconBlock.UUID = uuid
 }

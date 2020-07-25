@@ -52,6 +52,8 @@ type Message interface {
 
 	//VerifyMsgSanity verify msg before push it to final handler
 	VerifyMsgSanity() error
+	GetUUID() string
+	SetUUID(uuid string)
 }
 
 func MakeEmptyMessage(messageType string) (Message, error) {

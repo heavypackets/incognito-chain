@@ -5,9 +5,10 @@ import (
 
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/incognitokey"
-	"github.com/libp2p/go-libp2p-peer"
+	peer "github.com/libp2p/go-libp2p-peer"
 )
 
 type MessageGetAddr struct {
@@ -50,4 +51,11 @@ func (msg *MessageGetAddr) SignMsg(_ *incognitokey.KeySet) error {
 
 func (msg *MessageGetAddr) VerifyMsgSanity() error {
 	return nil
+}
+
+func (msg *MessageGetAddr) GetUUID() string {
+	return uuid.New().String()
+}
+
+func (msg *MessageGetAddr) SetUUID(uuid string) {
 }

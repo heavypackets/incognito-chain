@@ -3,10 +3,11 @@ package syncker
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
 
@@ -119,7 +120,8 @@ func (synckerManager *SynckerManager) ReceiveBlock(blk interface{}, peerID strin
 	switch blk.(type) {
 	case *blockchain.BeaconBlock:
 		beaconBlk := blk.(*blockchain.BeaconBlock)
-		fmt.Printf("syncker: receive beacon block %d \n", beaconBlk.GetHeight())
+		loggerv2 := common.NewLogger(common.WithRequestID(context.Background(), beaconBlk), logger)
+		loggerv2.Infof("syncker: receive beacon block %d, blk hash %v \n", beaconBlk.GetHeight(), beaconBlk.Hash().String())
 		//create fake s2b pool peerstate
 		if synckerManager.BeaconSyncProcess != nil {
 			synckerManager.beaconPool.AddBlock(beaconBlk)
@@ -137,6 +139,8 @@ func (synckerManager *SynckerManager) ReceiveBlock(blk interface{}, peerID strin
 	case *blockchain.ShardBlock:
 
 		shardBlk := blk.(*blockchain.ShardBlock)
+		loggerv2 := common.NewLogger(common.WithRequestID(context.Background(), shardBlk), logger)
+		loggerv2.Infof("syncker: receive beacon block %d, blk hash %v \n", shardBlk.GetHeight(), shardBlk.Hash().String())
 		//fmt.Printf("syncker: receive shard block %d \n", shardBlk.GetHeight())
 		if synckerManager.shardPool[shardBlk.GetShardID()] != nil {
 			synckerManager.shardPool[shardBlk.GetShardID()].AddBlock(shardBlk)
@@ -269,13 +273,19 @@ func (synckerManager *SynckerManager) GetS2BBlocksForBeaconValidator(bestViewSha
 	// synckerManager.config.Server.
 	if len(missingBlocks) > 0 {
 		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		dI := &DummyIdentifier{
+			uuid: common.GenUUID(),
+		}
+		ctx = context.WithValue(ctx, "uuid", dI.uuid)
+		ctx = common.WithRequestID(ctx, dI)
+		loggerv2 := common.NewLogger(ctx, logger)
 		synckerManager.StreamMissingShardToBeaconBlock(ctx, missingBlocks)
-		fmt.Println("debug finish stream missing s2b block")
+		loggerv2.Info("debug finish stream missing s2b block")
 
 		s2bPoolLists = synckerManager.GetS2BBlocksForBeaconProducer(bestViewShardHash)
 		missingBlocks = compareLists(s2bPoolLists, list)
 		if len(missingBlocks) > 0 {
-			return nil, errors.New("Unable to sync required block in time")
+			return nil, errors.Errorf("Unable to sync required block in time %v", dI.GetUUID())
 		}
 	}
 
@@ -284,7 +294,8 @@ func (synckerManager *SynckerManager) GetS2BBlocksForBeaconValidator(bestViewSha
 
 //Stream Missing ShardToBeacon Block
 func (synckerManager *SynckerManager) StreamMissingShardToBeaconBlock(ctx context.Context, missingBlock map[byte][]common.Hash) {
-	fmt.Println("debug stream missing s2b block", missingBlock)
+	loggerv2 := common.NewLogger(ctx, logger)
+	loggerv2.Infof("debug stream missing s2b block, number of block missing: %v", len(missingBlock))
 	wg := sync.WaitGroup{}
 	for i, v := range missingBlock {
 		wg.Add(1)
@@ -296,7 +307,7 @@ func (synckerManager *SynckerManager) StreamMissingShardToBeaconBlock(ctx contex
 			}
 			ch, err := synckerManager.config.Node.RequestShardToBeaconBlocksByHashViaStream(ctx, "", int(sid), hashes)
 			if err != nil {
-				fmt.Println("Syncker: create channel fail")
+				loggerv2.Error("Syncker: create channel fail")
 				return
 			}
 			//receive

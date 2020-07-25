@@ -2,6 +2,7 @@ package peerv2
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"reflect"
@@ -110,8 +111,15 @@ func (d *Dispatcher) processInMessageString(msgStr string) error {
 		return errors.WithStack(err)
 	}
 
+	err = json.Unmarshal(messageBody, &message)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	loggerv2 := common.NewLogger(common.WithRequestID(context.Background(), message), logger)
 	if len(jsonDecodeBytes) > message.MaxPayloadLength(wire.Version) {
-		return errors.Errorf("Message size too lagre %v, it must be less than %v", len(jsonDecodeBytes), message.MaxPayloadLength(wire.Version))
+		err := errors.Errorf("Message size too lagre %v, it must be less than %v", len(jsonDecodeBytes), message.MaxPayloadLength(wire.Version))
+		loggerv2.Error(err)
+		return err
 	}
 	// check forward TODO
 	/*if peerConn.config.MessageListeners.GetCurrentRoleShard != nil {
@@ -145,10 +153,6 @@ func (d *Dispatcher) processInMessageString(msgStr string) error {
 		}
 	}*/
 
-	err = json.Unmarshal(messageBody, &message)
-	if err != nil {
-		return errors.WithStack(err)
-	}
 	realType := reflect.TypeOf(message)
 	// fmt.Printf("Cmd message type of struct %s", realType.String())
 

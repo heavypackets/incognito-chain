@@ -1,10 +1,12 @@
 package blockchain
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
 
 	"github.com/incognitochain/incognito-chain/common"
@@ -16,6 +18,7 @@ type ShardBlock struct {
 	ValidationData string `json:"ValidationData"`
 	Body           ShardBody
 	Header         ShardHeader
+	UUID           string `json:"-"`
 }
 
 func (shardBlock *ShardBlock) GetProposer() string {
@@ -281,7 +284,21 @@ func (shardBlock *ShardBlock) UnmarshalJSON(data []byte) error {
 		return NewBlockChainError(UnmashallJsonShardBlockError, err)
 	}
 	shardBlock.Body = blkBody
+	id, err := uuid.FromBytes(shardBlock.Hash().Bytes())
+	if err != nil {
+		shardBlock.UUID = uuid.New().String()
+	} else {
+		shardBlock.UUID = id.String()
+	}
 	return nil
+}
+
+func (shardBlock *ShardBlock) GetUUID() string {
+	return shardBlock.UUID
+}
+
+func (shardBlock *ShardBlock) SetUUID(uuid string) {
+	shardBlock.UUID = uuid
 }
 
 // /*
@@ -300,24 +317,25 @@ func (shardBlock *ShardBlock) CreateShardToBeaconBlock(bc *BlockChain) *ShardToB
 	if bc.IsTest {
 		return &ShardToBeaconBlock{}
 	}
+	loggerv2 := common.NewLogger(common.WithRequestID(context.Background(), shardBlock), logger)
 	block := ShardToBeaconBlock{}
 	block.ValidationData = shardBlock.ValidationData
 	block.Header = shardBlock.Header
 	blockInstructions := shardBlock.Body.Instructions
 	previousShardBlockByte, err := rawdbv2.GetShardBlockByHash(bc.GetShardChainDatabase(shardBlock.Header.ShardID), shardBlock.Header.PreviousBlockHash)
 	if err != nil {
-		Logger.log.Errorf("[S2B] CreateShardToBeaconBlock return err:", err)
+		loggerv2.Errorf("[S2B] CreateShardToBeaconBlock return err:", err)
 		return nil
 	}
 	previousShardBlock := ShardBlock{}
 	err = json.Unmarshal(previousShardBlockByte, &previousShardBlock)
 	if err != nil {
-		Logger.log.Errorf("[S2B] CreateShardToBeaconBlock return err:", err)
+		loggerv2.Errorf("[S2B] CreateShardToBeaconBlock return err:", err)
 		return nil
 	}
 	instructions, err := CreateShardInstructionsFromTransactionAndInstruction(shardBlock.Body.Transactions, bc, shardBlock.Header.ShardID)
 	if err != nil {
-		Logger.log.Errorf("[S2B] CreateShardToBeaconBlock return err:", err)
+		loggerv2.Errorf("[S2B] CreateShardToBeaconBlock return err:", err)
 		return nil
 	}
 
@@ -330,12 +348,13 @@ func (shardBlock *ShardBlock) CreateAllCrossShardBlock(activeShards int) map[byt
 	if activeShards == 1 {
 		return allCrossShard
 	}
+	loggerv2 := common.NewLogger(common.WithRequestID(context.Background(), shardBlock), logger)
 	for i := 0; i < activeShards; i++ {
 		shardID := common.GetShardIDFromLastByte(byte(i))
 		if shardID != shardBlock.Header.ShardID {
 			crossShard, err := shardBlock.CreateCrossShardBlock(shardID)
 			if crossShard != nil {
-				Logger.log.Criticalf("Create CrossShardBlock from Shard %+v to Shard %+v: %+v \n", shardBlock.Header.ShardID, shardID, crossShard)
+				loggerv2.Infof("Create CrossShardBlock from Shard %+v to Shard %+v: %+v \n", shardBlock.Header.ShardID, shardID, crossShard.Hash())
 			}
 			if crossShard != nil && err == nil {
 				allCrossShard[byte(i)] = crossShard

@@ -986,8 +986,8 @@ func (serverObj *Server) OnBlockShard(p *peer.PeerConn,
 
 func (serverObj *Server) OnBlockBeacon(p *peer.PeerConn,
 	msg *wire.MessageBlockBeacon) {
-
-	//Logger.log.Info("Receive a new blockbeacon START")
+	loggerv2 := common.NewLogger(common.WithRequestID(context.Background(), msg), logger)
+	loggerv2.Info("Receive a new blockbeacon")
 	//
 	//var txProcessed chan struct{}
 	//serverObj.netSync.QueueBlock(nil, msg, txProcessed)
@@ -2189,8 +2189,14 @@ func (serverObj *Server) RequestShardToBeaconBlocksByHashViaStream(ctx context.C
 		From:         int32(fromSID),
 		To:           int32(peerv2.HighwayBeaconID),
 		SyncFromPeer: peerID,
+		UUID:         common.GenUUID(),
 	}
-
+	idOfRequest := ctx.Value("uuid")
+	if idOfRequest != nil {
+		if id, ok := idOfRequest.(string); ok {
+			req.UUID = id
+		}
+	}
 	return serverObj.requestBlocksByHashViaStream(ctx, peerID, req)
 }
 
