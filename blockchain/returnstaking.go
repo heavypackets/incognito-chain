@@ -52,7 +52,7 @@ func (blockchain *BlockChain) buildReturnStakingTxFromBeaconInstructions(
 			producerPrivateKey,
 			shardID,
 		)
-		Logger.log.Debugf("Return Staking Amount %v for funder %+v of candidate %v, staking transaction hash %+v, shardID %+v, err: %v", returnAmount, returnInfo.FunderAddress.String(), returnInfo.SwapoutPubKey, txStakingHash.String(), shardID, err)
+		Logger.log.Infof("Return Staking Amount %v for funder %+v of candidate %v, staking transaction hash %+v, shardID %+v, err: %v", returnAmount, returnInfo.FunderAddress.String(), returnInfo.SwapoutPubKey, txStakingHash.String(), shardID, err)
 		if err != nil {
 			return nil, nil, err
 		}
