@@ -113,6 +113,8 @@ func (db *db) Get(key []byte) ([]byte, error) {
 }
 
 func (db *db) Put(key, value []byte) error {
+	db.lock.Lock()
+	defer db.lock.Unlock()
 	if err := db.lvdb.Put(key, value, nil); err != nil {
 		return err
 	}

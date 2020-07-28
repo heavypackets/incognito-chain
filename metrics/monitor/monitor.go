@@ -5,9 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/incognitochain/incognito-chain/metrics"
 	"os"
 	"syscall"
+
+	"github.com/incognitochain/incognito-chain/metrics"
 
 	"github.com/google/uuid"
 	"github.com/incognitochain/incognito-chain/blockchain"
@@ -63,7 +64,7 @@ func init() {
 	//}
 
 	go func() {
-		time.Sleep(10 * time.Second)
+		time.Sleep(15 * time.Second)
 		ticker := time.NewTicker(5 * time.Second)
 		idle0, total0 := getCPUSample()
 		var m runtime.MemStats
