@@ -10,8 +10,8 @@ var bigCompress bigcompressor.BigCompressor
 var bigCompresslock sync.Mutex
 
 const (
-	maxPrecompressChunkSize int64 = 104857600
-	maxDecompressBufferSize int64 = 104857600
+	maxPrecompressChunkSize int64 = 1048576
+	maxDecompressBufferSize int64 = 1048576
 )
 
 func CompressDatabase(src string, dst string) error {
