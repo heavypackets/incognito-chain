@@ -1179,14 +1179,7 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 		return nil
 	}
 
-	backupPoint := false
-	for _, bblk := range beaconBlocks {
-		if (bblk.GetHeight()+1)%blockchain.config.ChainParams.Epoch == 0 {
-			backupPoint = true
-		}
-	}
-
-	if backupPoint {
+	if newShardState.BeaconHeight%blockchain.config.ChainParams.Epoch == 0 {
 		err := blockchain.GetShardChainDatabase(newShardState.ShardID).Backup(fmt.Sprintf("../../backup/shard%d/%d", newShardState.ShardID, newShardState.Epoch))
 		if err != nil {
 			blockchain.GetShardChainDatabase(newShardState.ShardID).RemoveBackup(fmt.Sprintf("../../backup/shard%d/%d", newShardState.ShardID, newShardState.Epoch))
