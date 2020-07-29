@@ -51,6 +51,8 @@ func newStateObjectWithValue(db *StateDB, objectType int, hash common.Hash, valu
 		return newPDEPoolPairObjectWithValue(db, hash, value)
 	case PDEShareObjectType:
 		return newPDEShareObjectWithValue(db, hash, value)
+	case PDETradingFeeObjectType:
+		return newPDETradingFeeObjectWithValue(db, hash, value)
 	case PDEStatusObjectType:
 		return newPDEStatusObjectWithValue(db, hash, value)
 	case BridgeEthTxObjectType:
@@ -85,6 +87,8 @@ func newStateObjectWithValue(db *StateDB, objectType int, hash common.Hash, valu
 		return newBlockMerkleObjectWithValue(db, hash, value)
 	case SwapIDForBlockObjectType:
 		return newSwapIDForBlockObjectWithValue(db, hash, value)
+	case StakerObjectType:
+		return newStakerObjectWithValue(db, hash, value)
 	default:
 		panic("state object type not exist")
 	}
@@ -118,6 +122,8 @@ func newStateObject(db *StateDB, objectType int, hash common.Hash) StateObject {
 		return newPDEPoolPairObject(db, hash)
 	case PDEShareObjectType:
 		return newPDEShareObject(db, hash)
+	case PDETradingFeeObjectType:
+		return newPDETradingFeeObject(db, hash)
 	case PDEStatusObjectType:
 		return newPDEStatusObject(db, hash)
 	case BridgeEthTxObjectType:
@@ -148,6 +154,10 @@ func newStateObject(db *StateDB, objectType int, hash common.Hash) StateObject {
 		return newRewardFeatureStateObject(db, hash)
 	case BlockMerkleObjectType:
 		return newBlockMerkleObject(db, hash)
+	case SwapIDForBlockObjectType:
+		return newSwapIDForBlockObject(db, hash)
+	case StakerObjectType:
+		return newStakerObject(db, hash)
 	default:
 		panic("state object type not exist")
 	}

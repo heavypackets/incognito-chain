@@ -268,7 +268,7 @@ func getBlockStateDBWithHeight(bc *blockchain.BlockChain, shardID byte, blockHei
 	var merkleBlockRootHash common.Hash
 	var err error
 	if shardID == byte(255) {
-		merkleBlockRootHash, err = rawdbv2.GetBeaconBlockRootHash(bc.GetBeaconChainDatabase(), blockHeight)
+		// merkleBlockRootHash, err = rawdbv2.GetBeaconBlockRootHash(bc.GetBeaconChainDatabase(), blockHeight)
 	} else {
 		merkleBlockRootHash, err = rawdbv2.GetShardBlockRootHash(bc.GetShardChainDatabase(shardID), shardID, blockHeight)
 	}

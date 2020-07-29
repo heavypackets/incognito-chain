@@ -181,9 +181,9 @@ type Hasher func(data ...[]byte) []byte
 
 func HashArrayInterface(target interface{}) (Hash, error) {
 	arr := InterfaceSlice(target)
-	if len(arr) == 0 {
-		return Hash{}, errors.New("interface input is not an array")
-	}
+	//if len(arr) == 0 {
+	//	return Hash{}, errors.New("interface input is not an array")
+	//}
 	temp := []byte{0}
 	for value := range arr {
 		valueBytes, err := json.Marshal(&value)

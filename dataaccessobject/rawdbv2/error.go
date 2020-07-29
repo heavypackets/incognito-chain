@@ -53,6 +53,10 @@ const (
 	StorePreviousBeaconBestStateError
 	GetPreviousBeaconBestStateError
 	CleanUpPreviousBeaconBestStateError
+	StoreBeaconPreCommitteeError
+	StoreBeaconPreCommitteeInfoError
+	GetBeaconPreCommitteeInfoError
+	GetShardPendingValidatorsError
 	// Shard
 	StoreShardBlockError
 	StoreShardBlockWithViewError
@@ -76,6 +80,7 @@ const (
 	GetPreviousShardBestStateError
 	CleanUpPreviousShardBestStateError
 	RestoreCrossShardNextHeightsError
+	StoreShardPreCommitteeError
 	// tx
 	StoreTransactionIndexError
 	GetTransactionByHashError
@@ -163,6 +168,10 @@ var ErrCodeMessage = map[int]struct {
 	DeleteShardFeatureRootHashError:         {-4027, "Delete Shard Feature Root Hash Error"},
 	DeleteShardSlashRootHashError:           {-4028, "Delete Shard Slash Root Hash Error"},
 	RestoreCrossShardNextHeightsError:       {-4029, "Restore Cross Shard Next Heights Error"},
+	StoreBeaconPreCommitteeError:            {-4030, "Store Beacon Pre Committee Error"},
+	StoreBeaconPreCommitteeInfoError:        {-4031, "Store Beacon Pre Committee Info Error"},
+	GetBeaconPreCommitteeInfoError:          {-4032, "Get Beacon Pre Committee Info Error"},
+	GetShardPendingValidatorsError:          {-4033, "Get Shard Pending Validators Error"},
 
 	// relaying
 	StoreRelayingBNBHeaderError: {-5001, "Store relaying header bnb error"},

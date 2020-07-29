@@ -65,6 +65,7 @@ func init() {
 
 	return
 	go func() {
+		time.Sleep(10 * time.Second)
 		ticker := time.NewTicker(5 * time.Second)
 		idle0, total0 := getCPUSample()
 		var m runtime.MemStats
