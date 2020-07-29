@@ -75,7 +75,7 @@ func TestBuildSwapConfirmInstruction(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			inst, err := buildSwapConfirmInstruction(tc.in.meta, tc.in.vals, tc.in.startHeight)
+			inst, err := buildSwapConfirmInstruction(tc.in.meta, tc.in.vals, tc.in.startHeight, tc.in.swapID)
 			isErr := err != nil
 			if isErr != tc.err {
 				t.Error(errors.Errorf("expect error = %t, got %v", tc.err, err))
@@ -106,6 +106,11 @@ func checkSwapConfirmInst(t *testing.T, inst []string, input *swapInput) {
 		}
 	}
 	if b, ok := checkDecodeB58(t, inst[4]); ok {
+		if swapID := big.NewInt(0).SetBytes(b); swapID.Uint64() != uint64(input.swapID) {
+			t.Errorf("invalid swapID, expect %d, got %d", input.swapID, swapID)
+		}
+	}
+	if b, ok := checkDecodeB58(t, inst[5]); ok {
 		if !bytes.Equal(b, getCommitteeAddresses()) {
 			t.Errorf("invalid committee addresses, expect %x, got %x", input.vals, b)
 		}
@@ -117,6 +122,7 @@ func getSwapBeaconConfirmInput() *swapInput {
 		meta:        70,
 		vals:        getCommitteeKeys(),
 		startHeight: 123,
+		swapID:      789,
 	}
 }
 
@@ -125,6 +131,7 @@ func getSwapBridgeConfirmInput() *swapInput {
 		meta:        71,
 		vals:        getCommitteeKeys(),
 		startHeight: 123,
+		swapID:      456,
 	}
 }
 
@@ -132,6 +139,7 @@ type swapInput struct {
 	meta        int
 	vals        []string
 	startHeight uint64
+	swapID      uint64
 }
 
 func getCommitteeAddresses() []byte {
@@ -157,6 +165,7 @@ func getCommitteeKeys() []string {
 }
 
 func TestBuildBeaconSwapConfirmInstruction(t *testing.T) {
+	// Must disable BLogger before running this test
 	testCases := []struct {
 		desc string
 		in   *swapInput
@@ -170,7 +179,7 @@ func TestBuildBeaconSwapConfirmInstruction(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			inst, err := buildBeaconSwapConfirmInstruction(tc.in.vals, tc.in.startHeight)
+			inst, err := buildBeaconSwapConfirmInstruction(tc.in.vals, tc.in.startHeight, tc.in.swapID)
 			isErr := err != nil
 			if isErr != tc.err {
 				t.Error(errors.Errorf("expect error = %t, got %v", tc.err, err))
@@ -185,6 +194,7 @@ func TestBuildBeaconSwapConfirmInstruction(t *testing.T) {
 }
 
 func TestBuildBridgeSwapConfirmInstruction(t *testing.T) {
+	// Must disable BLogger before running this test
 	testCases := []struct {
 		desc string
 		in   *swapInput
@@ -198,7 +208,7 @@ func TestBuildBridgeSwapConfirmInstruction(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			inst, err := buildBridgeSwapConfirmInstruction(tc.in.vals, tc.in.startHeight)
+			inst, err := buildBridgeSwapConfirmInstruction(tc.in.vals, tc.in.startHeight, tc.in.swapID)
 			isErr := err != nil
 			if isErr != tc.err {
 				t.Error(errors.Errorf("expect error = %t, got %v", tc.err, err))
@@ -328,13 +338,23 @@ func TestDecodeSwapConfirm(t *testing.T) {
 	}{
 		{
 			desc: "Swap beacon instruction",
-			inst: buildEncodedSwapConfirmInst(70, 1, 123, addrs),
-			out:  buildDecodedSwapConfirmInst(70, 1, 123, addrs),
+			inst: buildEncodedSwapConfirmInst(70, 1, 123, addrs, -1),
+			out:  buildDecodedSwapConfirmInst(70, 1, 123, addrs, -1),
 		},
 		{
 			desc: "Swap bridge instruction",
-			inst: buildEncodedSwapConfirmInst(71, 1, 19827312, []string{}),
-			out:  buildDecodedSwapConfirmInst(71, 1, 19827312, []string{}),
+			inst: buildEncodedSwapConfirmInst(71, 1, 19827312, []string{}, -1),
+			out:  buildDecodedSwapConfirmInst(71, 1, 19827312, []string{}, -1),
+		},
+		{
+			desc: "New swap beacon instruction",
+			inst: buildEncodedSwapConfirmInst(70, 1, 123, addrs, 789),
+			out:  buildDecodedSwapConfirmInst(70, 1, 123, addrs, 789),
+		},
+		{
+			desc: "New swap bridge instruction",
+			inst: buildEncodedSwapConfirmInst(71, 1, 19827312, []string{}, 789),
+			out:  buildDecodedSwapConfirmInst(71, 1, 19827312, []string{}, 789),
 		},
 	}
 
@@ -356,7 +376,7 @@ func TestDecodeSwapConfirm(t *testing.T) {
 	}
 }
 
-func buildEncodedSwapConfirmInst(meta, shard, height int, addrs []string) []string {
+func buildEncodedSwapConfirmInst(meta, shard, height int, addrs []string, swapID int) []string {
 	a := []byte{}
 	for _, addr := range addrs {
 		d, _ := hex.DecodeString(addr)
@@ -367,12 +387,17 @@ func buildEncodedSwapConfirmInst(meta, shard, height int, addrs []string) []stri
 		strconv.Itoa(shard),
 		base58.EncodeCheck(big.NewInt(int64(height)).Bytes()),
 		base58.EncodeCheck(big.NewInt(int64(len(addrs))).Bytes()),
-		base58.EncodeCheck(a),
 	}
+
+	if swapID >= 0 {
+		inst = append(inst, base58.EncodeCheck(big.NewInt(int64(swapID)).Bytes()))
+	}
+
+	inst = append(inst, base58.EncodeCheck(a))
 	return inst
 }
 
-func buildDecodedSwapConfirmInst(meta, shard, height int, addrs []string) []byte {
+func buildDecodedSwapConfirmInst(meta, shard, height int, addrs []string, swapID int) []byte {
 	a := []byte{}
 	for _, addr := range addrs {
 		d, _ := hex.DecodeString(addr)
@@ -382,6 +407,9 @@ func buildDecodedSwapConfirmInst(meta, shard, height int, addrs []string) []byte
 	decoded = append(decoded, byte(shard))
 	decoded = append(decoded, toBytes32BigEndian(big.NewInt(int64(height)).Bytes())...)
 	decoded = append(decoded, toBytes32BigEndian(big.NewInt(int64(len(addrs))).Bytes())...)
+	if swapID >= 0 {
+		decoded = append(decoded, toBytes32BigEndian(big.NewInt(int64(swapID)).Bytes())...)
+	}
 	decoded = append(decoded, a...)
 	return decoded
 }
