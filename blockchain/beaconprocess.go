@@ -861,28 +861,7 @@ func (beaconBestState *BeaconBestState) initBeaconBestState(genesisBeaconBlock *
 	beaconBestState.SlashStateDBRootHash = common.EmptyRoot
 	beaconBestState.RewardStateDBRootHash = common.EmptyRoot
 	beaconBestState.FeatureStateDBRootHash = common.EmptyRoot
-	if err != nil {
-		return err
-	}
-
-	// Block merkle tree: save empty merkle root to database
-	// if err := beaconBestState.blockStateDB.Database().TrieDB().Commit(common.EmptyRoot, false); err != nil {
-	// 	return err
-	// }
-	if newRootHash, err := addToBlockMerkle(
-		beaconBestState.blockStateDB,
-		byte(255), // Use shardID = 255 for beacon
-		genesisBeaconBlock.Header.Height-1,
-		genesisBeaconBlock.Header.PreviousBlockHash,
-	); err != nil {
-		return err
-	} else {
-		Logger.log.Infof("[db] initBeaconBestState genesis root hash: %s %s", common.EmptyRoot, newRootHash.String())
-		if err := beaconBestState.blockStateDB.Database().TrieDB().Commit(newRootHash, false); err != nil {
-			return err
-		}
-		beaconBestState.BlockStateDBRootHash = newRootHash
-	}
+	beaconBestState.BlockStateDBRootHash = common.EmptyRoot
 	//statedb===========================END
 	return nil
 }
@@ -1567,6 +1546,7 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 		FeatureStateDBRootHash:   featureRootHash,
 		RewardStateDBRootHash:    rewardRootHash,
 		SlashStateDBRootHash:     slashRootHash,
+		BlockStateDBRootHash:     blockRootHash,
 	}
 
 	if err := rawdbv2.StoreBeaconRootsHash(batch, blockHash, bRH); err != nil {

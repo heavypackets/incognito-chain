@@ -47,7 +47,6 @@ const (
 	GetShardSlashRootHashError
 	StoreBeaconBlockRootHashError
 	GetBeaconBlockRootHashError
-	StoreShardBlockRootHashError
 	GetShardBlockRootHashError
 	DeleteShardSlashRootHashError
 	StorePreviousBeaconBestStateError

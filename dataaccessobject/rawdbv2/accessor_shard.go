@@ -124,21 +124,3 @@ func GetShardRootsHash(db incdb.KeyValueReader, shardID byte, hash common.Hash) 
 	key := GetShardRootsHashKey(shardID, hash)
 	return db.Get(key)
 }
-
-func StoreShardBlockRootHash(db incdb.KeyValueWriter, shardID byte, height uint64, rootHash common.Hash) error {
-	key := GetShardBlockRootHashKey(shardID, height)
-	err := db.Put(key, rootHash[:])
-	if err != nil {
-		return NewRawdbError(StoreShardBlockRootHashError, err)
-	}
-	return nil
-}
-
-func GetShardBlockRootHash(db incdb.KeyValueReader, shardID byte, height uint64) (common.Hash, error) {
-	key := GetShardBlockRootHashKey(shardID, height)
-	res, err := db.Get(key)
-	if err != nil {
-		return common.Hash{}, NewRawdbError(GetShardBlockRootHashError, err)
-	}
-	return common.BytesToHash(res), nil
-}

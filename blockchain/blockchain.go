@@ -242,13 +242,31 @@ func (blockchain *BlockChain) initBeaconState() error {
 	}
 	rawdbv2.StoreFinalizedBeaconBlockHashByIndex(blockchain.GetBeaconChainDatabase(), initBlockHeight, initBlockHash)
 
+	// Block merkle tree: save empty merkle root to database
+	if newRootHash, err := addToBlockMerkle(
+		initBeaconBestState.blockStateDB,
+		byte(255), // Use shardID = 255 for beacon
+		initBlock.Header.Height-1,
+		initBlock.Header.PreviousBlockHash,
+	); err != nil {
+		return err
+	} else {
+		Logger.log.Infof("[db] initBeaconBestState genesis root hash: %s %s", common.EmptyRoot, newRootHash.String())
+		if err := initBeaconBestState.blockStateDB.Database().TrieDB().Commit(newRootHash, false); err != nil {
+			return err
+		}
+		initBeaconBestState.BlockStateDBRootHash = newRootHash
+	}
+
 	// State Root Hash
 	bRH := BeaconRootHash{
 		ConsensusStateDBRootHash: consensusRootHash,
 		FeatureStateDBRootHash:   common.EmptyRoot,
 		RewardStateDBRootHash:    common.EmptyRoot,
 		SlashStateDBRootHash:     common.EmptyRoot,
+		BlockStateDBRootHash:     initBeaconBestState.BlockStateDBRootHash,
 	}
+
 	initBeaconBestState.ConsensusStateDBRootHash = consensusRootHash
 	if err := rawdbv2.StoreBeaconRootsHash(blockchain.GetBeaconChainDatabase(), initBlockHash, bRH); err != nil {
 		return NewBlockChainError(StoreShardBlockError, err)
@@ -708,6 +726,7 @@ func (blockchain *BlockChain) GetBeaconViewStateDataFromBlockHash(blockHash comm
 		FeatureStateDBRootHash:   bRH.FeatureStateDBRootHash,
 		RewardStateDBRootHash:    bRH.RewardStateDBRootHash,
 		SlashStateDBRootHash:     bRH.SlashStateDBRootHash,
+		BlockStateDBRootHash:     bRH.BlockStateDBRootHash,
 	}
 
 	err = beaconView.RestoreBeaconViewStateFromHash(blockchain)

@@ -6,7 +6,6 @@ import (
 
 	"github.com/incognitochain/incognito-chain/blockchain"
 	"github.com/incognitochain/incognito-chain/common"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"github.com/incognitochain/incognito-chain/incdb"
 	"github.com/incognitochain/incognito-chain/metadata"
@@ -268,9 +267,9 @@ func getBlockStateDBWithHeight(bc *blockchain.BlockChain, shardID byte, blockHei
 	var merkleBlockRootHash common.Hash
 	var err error
 	if shardID == byte(255) {
-		// merkleBlockRootHash, err = rawdbv2.GetBeaconBlockRootHash(bc.GetBeaconChainDatabase(), blockHeight)
+		merkleBlockRootHash, err = bc.GetFinalizedBeaconBlockRootHash(blockHeight)
 	} else {
-		merkleBlockRootHash, err = rawdbv2.GetShardBlockRootHash(bc.GetShardChainDatabase(shardID), shardID, blockHeight)
+		merkleBlockRootHash, err = bc.GetFinalizedShardBlockRootHash(blockHeight, shardID)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error getting block root hash for shardID = %v, height = %v: %w", shardID, blockHeight, err)

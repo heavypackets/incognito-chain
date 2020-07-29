@@ -738,9 +738,6 @@ func (shardBestState *ShardBestState) initShardBestState(blockchain *BlockChain,
 
 	// Block merkle tree: insert dummy block with height 0
 	if genesisShardBlock.Header.ShardID == common.BridgeShardID {
-		// if err := shardBestState.blockStateDB.Database().TrieDB().Commit(common.EmptyRoot, false); err != nil {
-		// 	return err
-		// }
 		if newRootHash, err := addToBlockMerkle(
 			shardBestState.blockStateDB,
 			genesisShardBlock.Header.ShardID,
@@ -752,6 +749,7 @@ func (shardBestState *ShardBestState) initShardBestState(blockchain *BlockChain,
 			if err := shardBestState.blockStateDB.Database().TrieDB().Commit(newRootHash, false); err != nil {
 				return err
 			}
+			shardBestState.BlockStateDBRootHash = newRootHash
 		}
 	}
 
@@ -1206,15 +1204,11 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 		RewardStateDBRootHash:      rewardRootHash,
 		SlashStateDBRootHash:       slashRootHash,
 		TransactionStateDBRootHash: transactionRootHash,
+		BlockStateDBRootHash:       blockRootHash,
 	}
 
 	if err := rawdbv2.StoreShardRootsHash(batchData, shardID, blockHash, sRH); err != nil {
 		return NewBlockChainError(StoreShardBlockError, err)
-	}
-	if shardID == common.BridgeShardID {
-		if err := rawdbv2.StoreShardBlockRootHash(batchData, shardID, blockHeight, blockRootHash); err != nil {
-			return NewBlockChainError(StoreShardBlockError, err)
-		}
 	}
 
 	//statedb===========================END

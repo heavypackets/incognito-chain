@@ -3,6 +3,7 @@ package blockchain
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"github.com/incognitochain/incognito-chain/incdb"
 	"github.com/incognitochain/incognito-chain/multiview"
@@ -44,6 +45,23 @@ func (blockchain *BlockChain) GetBeaconBlockHashByHeight(finalView, bestView mul
 	}
 
 	return &blkhash, nil
+}
+
+func (blockchain *BlockChain) GetBeaconBlockHashByHeightAndView(view multiview.View, height uint64) (*common.Hash, error) {
+
+	blkheight := view.GetHeight()
+	blkhash := *view.GetHash()
+
+	if height > blkheight {
+		return nil, fmt.Errorf("Beacon, Block Height %+v not found", height)
+	}
+
+	if height == blkheight {
+		return &blkhash, nil
+	}
+
+	// => check if <= final block, using rawdb
+	return rawdbv2.GetFinalizedBeaconBlockHashByIndex(blockchain.GetBeaconChainDatabase(), height)
 }
 
 func (blockchain *BlockChain) GetBeaconBlockByHeightV1(height uint64) (*BeaconBlock, error) {
@@ -101,7 +119,7 @@ func (blockchain *BlockChain) GetShardBlockHashByHeight(finalView, bestView mult
 	blkhash := *bestView.GetHash()
 
 	if height > blkheight {
-		return nil, fmt.Errorf("Beacon, Block Height %+v not found", height)
+		return nil, fmt.Errorf("Shard, Block Height %+v not found", height)
 	}
 
 	if height == blkheight {
@@ -126,6 +144,22 @@ func (blockchain *BlockChain) GetShardBlockHashByHeight(finalView, bestView mult
 	}
 
 	return &blkhash, nil
+}
+
+func (blockchain *BlockChain) GetShardBlockHashByHeightAndView(view multiview.View, height uint64) (*common.Hash, error) {
+
+	blkheight := view.GetHeight()
+	blkhash := *view.GetHash()
+
+	if height > blkheight {
+		return nil, fmt.Errorf("Shard, Block Height %+v not found", height)
+	}
+
+	if height == blkheight {
+		return &blkhash, nil
+	}
+
+	return rawdbv2.GetFinalizedShardBlockHashByIndex(blockchain.GetShardChainDatabase(view.(*ShardBestState).ShardID), view.(*ShardBestState).ShardID, height)
 }
 
 func (blockchain *BlockChain) GetShardBlockByHeight(height uint64, shardID byte) (map[common.Hash]*ShardBlock, error) {

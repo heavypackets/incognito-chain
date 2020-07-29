@@ -32,6 +32,7 @@ type ShardRootHash struct {
 	FeatureStateDBRootHash     common.Hash
 	RewardStateDBRootHash      common.Hash
 	SlashStateDBRootHash       common.Hash
+	BlockStateDBRootHash       common.Hash
 }
 
 type ShardBestState struct {
@@ -398,6 +399,19 @@ func (blockchain *BlockChain) GetShardRootsHash(shardBestState *ShardBestState, 
 	return sRH, err
 }
 
-func (blockchain *BlockChain) GetShardBlockRootHash(db incdb.Database, shardID byte, height uint64) (common.Hash, error) {
-	return rawdbv2.GetShardBlockRootHash(db, shardID, height)
+func (blockchain *BlockChain) GetFinalizedShardBlockRootHash(height uint64, shardID byte) (common.Hash, error) {
+	h, e := blockchain.GetShardBlockHashByHeightAndView(blockchain.ShardChain[shardID].GetFinalView(), height)
+	if e != nil {
+		return common.Hash{}, e
+	}
+
+	data, e := rawdbv2.GetShardRootsHash(blockchain.GetBeaconChainDatabase(), shardID, *h)
+	if e != nil {
+		return common.Hash{}, e
+	}
+	sRH := &ShardRootHash{}
+	if e := json.Unmarshal(data, sRH); e != nil {
+		return common.Hash{}, e
+	}
+	return sRH.BlockStateDBRootHash, nil
 }

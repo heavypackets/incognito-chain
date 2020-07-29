@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
-	"github.com/incognitochain/incognito-chain/incdb"
 	"github.com/incognitochain/incognito-chain/privacy"
 
 	"github.com/incognitochain/incognito-chain/common"
@@ -30,6 +29,7 @@ type BeaconRootHash struct {
 	FeatureStateDBRootHash   common.Hash
 	RewardStateDBRootHash    common.Hash
 	SlashStateDBRootHash     common.Hash
+	BlockStateDBRootHash     common.Hash
 }
 
 type BeaconBestState struct {
@@ -392,6 +392,7 @@ func (beaconBestState *BeaconBestState) cloneBeaconBestStateFrom(target *BeaconB
 	beaconBestState.featureStateDB = target.featureStateDB.Copy()
 	beaconBestState.rewardStateDB = target.rewardStateDB.Copy()
 	beaconBestState.slashStateDB = target.slashStateDB.Copy()
+	beaconBestState.blockStateDB = target.blockStateDB.Copy()
 
 	// TODO: @tin: re-produce field that not marshal
 	beaconBestState.AutoStaking = target.AutoStaking.LazyCopy()
@@ -454,7 +455,6 @@ func (beaconBestState *BeaconBestState) cloneBeaconBestStateFrom(target *BeaconB
 	}
 
 	//beaconBestState.currentPDEState = target.currentPDEState.Copy()
-	beaconBestState.blockStateDB = target.blockStateDB.Copy()
 	return nil
 }
 
@@ -684,7 +684,19 @@ func (blockchain *BlockChain) GetBeaconRootsHash(stateDB *statedb.StateDB, heigh
 	return bRH, err
 }
 
-func (blockchain *BlockChain) GetBeaconBlockRootHash(db incdb.Database, height uint64) (common.Hash, error) {
-	return common.Hash{}, nil
-	// return rawdbv2.GetBeaconBlockRootHash(db, height)
+func (blockchain *BlockChain) GetFinalizedBeaconBlockRootHash(height uint64) (common.Hash, error) {
+	h, e := blockchain.GetBeaconBlockHashByHeightAndView(blockchain.BeaconChain.GetFinalView(), height)
+	if e != nil {
+		return common.Hash{}, e
+	}
+
+	data, e := rawdbv2.GetBeaconRootsHash(blockchain.GetBeaconChainDatabase(), *h)
+	if e != nil {
+		return common.Hash{}, e
+	}
+	bRH := &BeaconRootHash{}
+	if e := json.Unmarshal(data, bRH); e != nil {
+		return common.Hash{}, e
+	}
+	return bRH.BlockStateDBRootHash, nil
 }
