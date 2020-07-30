@@ -685,7 +685,7 @@ func (blockchain *BlockChain) GetBeaconRootsHash(stateDB *statedb.StateDB, heigh
 }
 
 func (blockchain *BlockChain) GetFinalizedBeaconBlockRootHash(height uint64) (common.Hash, error) {
-	h, e := blockchain.GetBeaconBlockHashByHeightAndView(blockchain.BeaconChain.GetFinalView(), height)
+	h, e := blockchain.GetBeaconBlockHashByView(blockchain.BeaconChain.GetFinalView(), height)
 	if e != nil {
 		return common.Hash{}, e
 	}

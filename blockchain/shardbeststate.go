@@ -400,7 +400,7 @@ func (blockchain *BlockChain) GetShardRootsHash(shardBestState *ShardBestState, 
 }
 
 func (blockchain *BlockChain) GetFinalizedShardBlockRootHash(height uint64, shardID byte) (common.Hash, error) {
-	h, e := blockchain.GetShardBlockHashByHeightAndView(blockchain.ShardChain[shardID].GetFinalView(), height)
+	h, e := blockchain.GetShardBlockHashByView(blockchain.ShardChain[shardID].GetFinalView(), height)
 	if e != nil {
 		return common.Hash{}, e
 	}

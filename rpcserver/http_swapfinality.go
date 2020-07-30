@@ -97,26 +97,17 @@ func getSingleBlockByHeight(bc *blockchain.BlockChain, height uint64, shardID by
 }
 
 func getSingleBeaconBlockByHeight(bc *blockchain.BlockChain, height uint64) (*blockchain.BeaconBlock, error) {
-	beaconBlocks, err := bc.GetBeaconBlockByHeight(height)
-	if err != nil || len(beaconBlocks) == 0 {
+	beaconBlock, err := bc.GetBeaconBlockByView(bc.BeaconChain.GetFinalView(), height)
+	if err != nil {
 		return nil, fmt.Errorf("cannot find beacon block with height %d %w", height, err)
 	}
-	b := beaconBlocks[0]
-	return b, nil
+	return beaconBlock, nil
 }
 
 func getSingleShardBlockByHeight(bc *blockchain.BlockChain, height uint64, shardID byte) (*blockchain.ShardBlock, error) {
-	blocks, err := bc.GetShardBlockByHeight(height, shardID)
+	block, err := bc.GetShardBlockByView(bc.ShardChain[shardID].GetFinalView(), height, shardID)
 	if err != nil {
 		return nil, err
-	}
-	if len(blocks) == 0 {
-		return nil, fmt.Errorf("no block found for shardID = %v, height = %v", shardID, height)
-	}
-	var block *blockchain.ShardBlock
-	for _, b := range blocks {
-		block = b
-		break
 	}
 
 	insts, err := extractInstsFromShardBlock(block, bc)
