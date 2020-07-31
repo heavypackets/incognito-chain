@@ -80,12 +80,10 @@ func getSwapProofOnBeacon(
 	meta int,
 ) (*swapProof, *blockchain.BeaconBlock, *rpcservice.RPCError) {
 	// Get beacon block
-	beaconBlocks, err := blockchain.FetchBeaconBlockFromHeight(bc, height, height)
-	if len(beaconBlocks) == 0 {
-		err := fmt.Errorf("cannot find beacon block with height %d", height)
-		return nil, nil, rpcservice.NewRPCError(rpcservice.GetBeaconBlockByHeightError, err)
+	b, err := getSingleBeaconBlockByHeight(bc, height)
+	if err != nil {
+		return nil, nil, rpcservice.NewRPCError(rpcservice.NoSwapConfirmInst, err)
 	}
-	b := beaconBlocks[0]
 
 	// Find bridge swap instruction in beacon block
 	insts := b.Body.Instructions
@@ -108,16 +106,9 @@ func getShardAndBeaconBlocks(
 	bc *blockchain.BlockChain,
 ) (*blockchain.ShardBlock, []*blockchain.BeaconBlock, error) {
 	bridgeID := byte(common.BridgeShardID)
-	bridgeBlocks, err := bc.GetShardBlockByHeight(height, bridgeID)
+	bridgeBlock, err := getSingleShardBlockByHeight(bc, height, bridgeID)
 	if err != nil {
 		return nil, nil, err
-	}
-	if len(bridgeBlocks) == 0 {
-		return nil, nil, fmt.Errorf("shard block bridgeID %+v, height %+v not found", bridgeID, height)
-	}
-	var bridgeBlock *blockchain.ShardBlock
-	for _, temp := range bridgeBlocks {
-		bridgeBlock = temp
 	}
 	beaconBlocks, err := getIncludedBeaconBlocks(
 		bridgeBlock.Header.Height,
@@ -205,19 +196,15 @@ func getIncludedBeaconBlocks(
 	shardID byte,
 	bc *blockchain.BlockChain,
 ) ([]*blockchain.BeaconBlock, error) {
-	prevShardBlocks, err := bc.GetShardBlockByHeight(shardHeight-1, shardID)
+	previousShardBlock, err := getSingleShardBlockByHeight(bc, shardHeight-1, shardID)
 	if err != nil {
 		return nil, err
-	}
-	var previousShardBlock *blockchain.ShardBlock
-	for _, temp := range prevShardBlocks {
-		previousShardBlock = temp
 	}
 	beaconBlocks, err := blockchain.FetchBeaconBlockFromHeight(
 		bc,
 		previousShardBlock.Header.BeaconHeight+1,
 		beaconHeight,
-	)
+	) // All beacon blocks must be finalized, no need to get from finalView
 	if err != nil {
 		return nil, err
 	}
@@ -234,10 +221,6 @@ func extractInstsFromShardBlock(
 		shardBlock.Body.Transactions,
 		bc,
 		shardBlock.Header.ShardID,
-		//	&shardBlock.Header.ProducerAddress,
-		//	shardBlock.Header.Height,
-		//	beaconBlocks,
-		//	shardBlock.Header.BeaconHeight,
 	)
 	if err != nil {
 		return nil, err
