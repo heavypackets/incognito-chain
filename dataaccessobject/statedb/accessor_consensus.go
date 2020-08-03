@@ -126,13 +126,9 @@ func StoreNextEpochShardCandidate(
 	stakingTx map[string]common.Hash,
 	// amountStaking map[string]uint64,
 ) error {
-	err := storeStakerInfo(stateDB, candidate, rewardReceiver, autoStaking, stakingTx)
-	if err != nil {
-		return NewStatedbError(StoreNextEpochCandidateError, err)
-	}
-	err = storeCommittee(stateDB, CandidateChainID, NextEpochShardCandidate, candidate, defaultEnterTime)
-	if err != nil {
-		return NewStatedbError(StoreNextEpochCandidateError, err)
+	err1 := storeCommittee(stateDB, CandidateChainID, NextEpochShardCandidate, candidate, defaultEnterTime)
+	if err1 != nil {
+		return NewStatedbError(StoreNextEpochCandidateError, err1)
 	}
 	return nil
 }
@@ -152,13 +148,9 @@ func StoreNextEpochBeaconCandidate(
 	autoStaking map[string]bool,
 	stakingTx map[string]common.Hash,
 ) error {
-	err := storeStakerInfo(stateDB, candidate, rewardReceiver, autoStaking, stakingTx)
-	if err != nil {
-		return NewStatedbError(StoreNextEpochCandidateError, err)
-	}
-	err = storeCommittee(stateDB, BeaconChainID, NextEpochBeaconCandidate, candidate, defaultEnterTime)
-	if err != nil {
-		return NewStatedbError(StoreNextEpochCandidateError, err)
+	err1 := storeCommittee(stateDB, BeaconChainID, NextEpochBeaconCandidate, candidate, defaultEnterTime)
+	if err1 != nil {
+		return NewStatedbError(StoreNextEpochCandidateError, err1)
 	}
 	return nil
 }
@@ -375,12 +367,12 @@ func GetAllCommitteeStakeInfo(stateDB *StateDB, shardIDs []int) map[int][]*Stake
 	return stateDB.getShardsCommitteeInfo(shardIDs)
 }
 
-func GetStakingInfo(bcDB *StateDB, shardIDs []int) (map[string]bool, map[string]common.Hash) {
-	mapAutoStaking, mapStakingTx, err := bcDB.getMapAutoStaking(shardIDs)
+func GetStakingInfo(bcDB *StateDB, shardIDs []int) map[string]bool {
+	mapAutoStaking, err := bcDB.getMapAutoStaking(shardIDs)
 	if err != nil {
 		panic(err)
 	}
-	return mapAutoStaking, mapStakingTx
+	return mapAutoStaking
 }
 
 func GetStakerInfo(stateDB *StateDB, stakerPubkey string) (*StakerInfo, bool, error) {
@@ -496,32 +488,31 @@ func DeleteBeaconSubstituteValidator(stateDB *StateDB, beaconSubstitute []incogn
 //finally, we have {B: F,A: D};
 //Note1: A and E in same shard,means if A and E in different shard, then there is no replacement
 //Note2: only staking tx is used in this staker info
-
-func StoreStakerInfoAtShardDB(stateDB *StateDB, committeeStr string, stakingTX string) error {
-	var committee = new(incognitokey.CommitteePublicKey)
-	if err := committee.FromString(committeeStr); err != nil {
-		return err
-	}
-	keyBytes, err := committee.RawBytes()
-	if err != nil {
-		fmt.Println("get raw byte fail", err)
-		return err
-	}
-	key := GetStakerInfoKey(keyBytes)
-	value := NewStakerInfo()
-	stakingTXHash, err := common.Hash{}.NewHashFromStr(stakingTX)
-	if err != nil {
-		fmt.Println("import hash fail!", err)
-		return err
-	}
-	value.SetTxStakingID(*stakingTXHash)
-	value.SetRewardReceiver(privacy.PaymentAddress{Pk: privacy.PublicKey{0}, Tk: privacy.TransmissionKey{0}})
-	err = stateDB.SetStateObject(StakerObjectType, key, value)
-	if err != nil {
-		fmt.Println("set state fail!", err)
-	}
-	return err
-}
+//func StoreStakerInfoAtShardDB(stateDB *StateDB, committeeStr string, stakingTX string) error {
+//	var committee = new(incognitokey.CommitteePublicKey)
+//	if err := committee.FromString(committeeStr); err != nil {
+//		return err
+//	}
+//	keyBytes, err := committee.RawBytes()
+//	if err != nil {
+//		fmt.Println("get raw byte fail", err)
+//		return err
+//	}
+//	key := GetStakerInfoKey(keyBytes)
+//	value := NewStakerInfo()
+//	stakingTXHash, err := common.Hash{}.NewHashFromStr(stakingTX)
+//	if err != nil {
+//		fmt.Println("import hash fail!", err)
+//		return err
+//	}
+//	value.SetTxStakingID(*stakingTXHash)
+//	value.SetRewardReceiver(privacy.PaymentAddress{Pk: privacy.PublicKey{0}, Tk: privacy.TransmissionKey{0}})
+//	err = stateDB.SetStateObject(StakerObjectType, key, value)
+//	if err != nil {
+//		fmt.Println("set state fail!", err)
+//	}
+//	return err
+//}
 
 func storeStakerInfo(
 	stateDB *StateDB,
