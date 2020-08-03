@@ -80,6 +80,7 @@ const (
 	VerifyCrossShardCustomTokenError
 	ShardCommitteeRootHashError
 	ShardPendingValidatorRootHashError
+	ShardStakingTxRootHashError
 	BeaconCommitteeAndPendingValidatorRootError
 	ShardCommitteeAndPendingValidatorRootError
 	ShardCandidateRootError
@@ -183,6 +184,7 @@ const (
 	GetShardBlockHeightByHashError
 	GetShardBlockByHashError
 	GetListOutputCoinsByKeysetError
+	ResponsedTransactionFromBeaconInstructionsError
 )
 
 var ErrCodeMessage = map[int]struct {
@@ -346,11 +348,13 @@ var ErrCodeMessage = map[int]struct {
 	InsertShardBlockError:                             {-1154, "Insert Shard Block Error"},
 	GetShardBlockHeightByHashError:                    {-1155, "Get Shard Block Height By Hash Error"},
 	GetShardBlockByHashError:                          {-1156, "Get Shard Block By Hash Error"},
+	ShardStakingTxRootHashError:                       {-1157, "Build Shard StakingTX error"},
 	GetListOutputCoinsByKeysetError:                   {-2000, "Get List Output Coins By Keyset Error"},
 	GetTotalLockedCollateralError:                     {-3000, "Get Total Locked Collateral Error"},
 	GetListDecryptedOutputCoinsByKeysetError:          {-2100, "Get List Output Coins By Keyset Error"},
 	GetListDecryptedOutputCoinsV1ByKeysetError:        {-2101, "Get List Output Coins Ver 1 By Ketset Error"},
 	GetAndCheckBurnError:								{-2102, "Get and Check Burn Receiver Error"},
+	ResponsedTransactionFromBeaconInstructionsError:   {-3100, "Build Transaction Response From Beacon Instructions Error"},
 }
 
 type BlockChainError struct {

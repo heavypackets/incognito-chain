@@ -28,7 +28,7 @@ const (
 	UpperBoundPercentForIncDAO    = 10
 	GetValidBlock                 = 20
 	TestRandom                    = true
-	NumberOfFixedBlockValidators  = 0
+	NumberOfFixedBlockValidators  = 4
 	BEACON_ID                     = -1         // CommitteeID of beacon chain, used for highway
 	ValidateTimeForSpamRequestTxs = 1581565837 // GMT: Thursday, February 13, 2020 3:50:37 AM. From this time, block will be checked spam request-reward tx
 	TransactionBatchSize          = 30
@@ -106,7 +106,7 @@ const (
 	TestnetSwapOffset       = 1
 	TestnetAssignOffset     = 2
 
-	TestNetShardCommitteeSize     = 16
+	TestNetShardCommitteeSize     = 32
 	TestNetMinShardCommitteeSize  = 4
 	TestNetBeaconCommitteeSize    = 4
 	TestNetMinBeaconCommitteeSize = 4
@@ -114,9 +114,9 @@ const (
 	TestNetStakingAmountShard     = 1750000000000 // 1750 PRV = 1750 * 10^9 nano PRV
 
 	TestNetMinBeaconBlkInterval = 10 * time.Second //second
-	TestNetMaxBeaconBlkCreation = 8 * time.Second  //second, timeout is 25
+	TestNetMaxBeaconBlkCreation = 8 * time.Second  //second
 	TestNetMinShardBlkInterval  = 10 * time.Second //second
-	TestNetMaxShardBlkCreation  = 6 * time.Second  //second, timeout is 25
+	TestNetMaxShardBlkCreation  = 6 * time.Second  //second
 
 	//board and proposal parameters
 	TestnetBasicReward = 400000000 //40 mili PRV
@@ -129,11 +129,11 @@ const (
 	TestnetCentralizedWebsitePaymentAddress = "12S5Lrs1XeQLbqN4ySyKtjAjd2d7sBP2tjFijzmp6avrrkQCNFMpkXm3FPzj2Wcu2ZNqJEmh9JriVuRErVwhuQnLmWSaggobEWsBEci"
 
 	// relaying header chain
-	TestnetBNBChainID = "Binance-Chain-Nile"
+	TestnetBNBChainID = "Binance-Chain-Ganges"
 	TestnetBTCChainID = "Bitcoin-Testnet"
 
 	// BNB fullnode
-	TestnetBNBFullNodeHost     = "data-seed-pre-0-s1.binance.org"
+	TestnetBNBFullNodeHost     = "data-seed-pre-0-s3.binance.org"
 	TestnetBNBFullNodeProtocol = "https"
 	TestnetBNBFullNodePort     = "443"
 	TestnetPortalFeeder        = "12S2ciPBja9XCnEVEcsPvmCLeQH44vF8DMwSqgkH7wFETem5FiqiEpFfimETcNqDkARfht1Zpph9u5eQkjEnWsmZ5GB5vhc928EoNYH"

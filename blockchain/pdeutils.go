@@ -15,6 +15,9 @@ import (
 	"math/big"
 	"sort"
 	"strings"
+
+	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
+	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 )
 
 type CurrentPDEState struct {
@@ -22,6 +25,7 @@ type CurrentPDEState struct {
 	DeletedWaitingPDEContributions map[string]*rawdbv2.PDEContribution
 	PDEPoolPairs                   map[string]*rawdbv2.PDEPoolForPair
 	PDEShares                      map[string]uint64
+	PDETradingFees                 map[string]uint64
 }
 
 func (s *CurrentPDEState) Copy() *CurrentPDEState {
@@ -46,6 +50,16 @@ type DeductingAmountsByWithdrawal struct {
 	Shares      uint64
 }
 
+type DeductingAmountsByWithdrawalWithPRVFee struct {
+	Token1IDStr   string
+	PoolValue1    uint64
+	Token2IDStr   string
+	PoolValue2    uint64
+	Shares        uint64
+	FeeTokenIDStr string
+	FeeAmount     uint64
+}
+
 func InitCurrentPDEStateFromDB(
 	stateDB *statedb.StateDB,
 	beaconHeight uint64,
@@ -62,10 +76,15 @@ func InitCurrentPDEStateFromDB(
 	if err != nil {
 		return nil, err
 	}
+	pdeTradingFees, err := statedb.GetPDETradingFees(stateDB, beaconHeight)
+	if err != nil {
+		return nil, err
+	}
 	return &CurrentPDEState{
 		WaitingPDEContributions:        waitingPDEContributions,
 		PDEPoolPairs:                   pdePoolPairs,
 		PDEShares:                      pdeShares,
+		PDETradingFees:                 pdeTradingFees,
 		DeletedWaitingPDEContributions: make(map[string]*rawdbv2.PDEContribution),
 	}, nil
 }
@@ -86,6 +105,10 @@ func storePDEStateToDB(
 		return err
 	}
 	err = statedb.StorePDEShares(stateDB, beaconHeight, currentPDEState.PDEShares)
+	if err != nil {
+		return err
+	}
+	err = statedb.StorePDETradingFees(stateDB, beaconHeight, currentPDEState.PDETradingFees)
 	if err != nil {
 		return err
 	}

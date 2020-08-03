@@ -75,12 +75,12 @@ func (iRes *PDEContributionResponse) CalculateSize() uint64 {
 func (iRes PDEContributionResponse) VerifyMinerCreatedTxBeforeGettingInBlock(mintData *MintData, shardID byte, tx Transaction, chainRetriever ChainRetriever, ac *AccumulatedValues, shardViewRetriever ShardViewRetriever, beaconViewRetriever BeaconViewRetriever) (bool, error) {
 	idx := -1
 	for i, inst := range mintData.Insts {
-		if len(inst) < 4 { // this is not PDEContribution instruction
+		if len(inst) < 4 { // this is not PDEContribution or PDEPRVRequiredContributionRequestMeta instruction
 			continue
 		}
 		instMetaType := inst[0]
 		if mintData.InstsUsed[i] > 0 ||
-			instMetaType != strconv.Itoa(PDEContributionMeta) {
+			(instMetaType != strconv.Itoa(PDEContributionMeta) && instMetaType != strconv.Itoa(PDEPRVRequiredContributionRequestMeta)) {
 			continue
 		}
 		instContributionStatus := inst[2]
@@ -148,7 +148,7 @@ func (iRes PDEContributionResponse) VerifyMinerCreatedTxBeforeGettingInBlock(min
 		break
 	}
 	if idx == -1 { // not found the issuance request tx for this response
-		return false, fmt.Errorf(fmt.Sprintf("no PDEContribution instruction found for PDEContributionResponse tx %s", tx.Hash().String()))
+		return false, fmt.Errorf(fmt.Sprintf("no PDEContribution or PDEPRVRequiredContributionRequestMeta instruction found for PDEContributionResponse tx %s", tx.Hash().String()))
 	}
 	mintData.InstsUsed[idx] = 1
 	return true, nil

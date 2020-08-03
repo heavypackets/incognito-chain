@@ -302,7 +302,7 @@ func (s *BeaconSyncProcess) streamFromPeer(peerID string, pState BeaconPeerState
 	}
 
 	//stream
-	ch, err := s.server.RequestBeaconBlocksViaStream(ctx, "", s.chain.GetBestViewHeight()+1, toHeight)
+	ch, err := s.server.RequestBeaconBlocksViaStream(ctx, "", s.chain.GetFinalViewHeight()+1, toHeight)
 	if err != nil {
 		fmt.Println("Syncker: create channel fail")
 		return
@@ -315,11 +315,11 @@ func (s *BeaconSyncProcess) streamFromPeer(peerID string, pState BeaconPeerState
 		select {
 		case blk := <-ch:
 			if !isNil(blk) {
-				Logger.Infof("Syncker beacon receive block %v", blk.GetHeight())
+				//Logger.Infof("Syncker beacon receive block %v", blk.GetHeight())
 				blockBuffer = append(blockBuffer, blk)
 			}
 
-			if uint64(len(blockBuffer)) >= 500 || (len(blockBuffer) > 0 && (isNil(blk) || time.Since(insertTime) > time.Millisecond*2000)) {
+			if uint64(len(blockBuffer)) >= blockchain.DefaultMaxBlkReqPerPeer || (len(blockBuffer) > 0 && (isNil(blk) || time.Since(insertTime) > time.Millisecond*2000)) {
 				insertBlkCnt := 0
 				for {
 					time1 := time.Now()

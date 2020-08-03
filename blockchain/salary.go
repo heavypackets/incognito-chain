@@ -8,12 +8,10 @@ import (
 
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/common/base58"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"github.com/incognitochain/incognito-chain/incognitokey"
 	"github.com/incognitochain/incognito-chain/metadata"
 	"github.com/incognitochain/incognito-chain/privacy"
-	"github.com/incognitochain/incognito-chain/transaction"
 	"github.com/incognitochain/incognito-chain/wallet"
 	"github.com/pkg/errors"
 )
@@ -143,8 +141,7 @@ func (blockchain *BlockChain) addShardRewardRequestToBeacon(beaconBlock *BeaconB
 }
 
 func (blockchain *BlockChain) processSalaryInstructions(rewardStateDB *statedb.StateDB, beaconBlocks []*BeaconBlock, shardID byte) error {
-	rewardReceivers := make(map[string]string)
-	committees := make(map[int][]incognitokey.CommitteePublicKey)
+	cInfos := make(map[int][]*statedb.StakerInfo)
 	isInit := false
 	epoch := uint64(0)
 	for _, beaconBlock := range beaconBlocks {
@@ -207,8 +204,10 @@ func (blockchain *BlockChain) processSalaryInstructions(rewardStateDB *statedb.S
 				}
 				if (!isInit) || (epoch != shardRewardInfo.Epoch) {
 					isInit = true
+					epoch = shardRewardInfo.Epoch
 					height := shardRewardInfo.Epoch * blockchain.config.ChainParams.Epoch
-					beaconConsensusRootHash, err := blockchain.GetBeaconConsensusRootHash(blockchain.GetBeaconChainDatabase(), height)
+					var beaconConsensusRootHash common.Hash
+					beaconConsensusRootHash, err = blockchain.GetBeaconConsensusRootHash(blockchain.GetBeaconBestState(), height)
 					if err != nil {
 						return NewBlockChainError(ProcessSalaryInstructionsError, fmt.Errorf("Beacon Consensus Root Hash of Height %+v not found ,error %+v", height, err))
 					}
@@ -216,15 +215,39 @@ func (blockchain *BlockChain) processSalaryInstructions(rewardStateDB *statedb.S
 					if err != nil {
 						return NewBlockChainError(ProcessSalaryInstructionsError, err)
 					}
-					committees, rewardReceivers = statedb.GetAllCommitteeStateWithRewardReceiver(beaconConsensusStateDB, blockchain.GetShardIDs())
+					cInfos = statedb.GetAllCommitteeStakeInfo(beaconConsensusStateDB, blockchain.GetShardIDs())
 				}
-				err = blockchain.addShardCommitteeReward(rewardStateDB, shardID, shardRewardInfo, committees[int(shardToProcess)], rewardReceivers)
+				err = blockchain.addShardCommitteeRewardV2(rewardStateDB, shardID, shardRewardInfo, cInfos[int(shardToProcess)])
 				if err != nil {
 					return err
 				}
 				continue
 			}
 
+		}
+	}
+	return nil
+}
+
+func (blockchain *BlockChain) addShardCommitteeRewardV2(
+	rewardStateDB *statedb.StateDB,
+	shardID byte,
+	rewardInfoShardToProcess *metadata.ShardBlockRewardInfo,
+	cStakeInfos []*statedb.StakerInfo,
+) (
+	err error,
+) {
+	committeeSize := len(cStakeInfos)
+	for _, candidate := range cStakeInfos {
+		if common.GetShardIDFromLastByte(candidate.RewardReceiver().Pk[common.PublicKeySize-1]) == shardID {
+			for key, value := range rewardInfoShardToProcess.ShardReward {
+				tempPK := base58.Base58Check{}.Encode(candidate.RewardReceiver().Pk, common.Base58Version)
+				Logger.log.Criticalf("Add Committee Reward ShardCommitteeReward, Public Key %+v, reward %+v, token %+v", tempPK, value/uint64(committeeSize), key)
+				err = statedb.AddCommitteeReward(rewardStateDB, tempPK, value/uint64(committeeSize), key)
+				if err != nil {
+					return NewBlockChainError(ProcessSalaryInstructionsError, err)
+				}
+			}
 		}
 	}
 	return nil
