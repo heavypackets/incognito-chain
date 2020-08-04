@@ -20,6 +20,7 @@ type GetBeaconBlockResult struct {
 	Instructions      [][]string  `json:"Instructions"`
 	Size              uint64      `json:"Size"`
 	ShardStates       interface{} `json:"ShardStates"`
+	IsFinalized       bool        `json:"IsFinalized"`
 }
 
 type GetShardBlockResult struct {
@@ -48,6 +49,7 @@ type GetShardBlockResult struct {
 	Size              uint64             `json:"Size"`
 	Instruction       [][]string         `json:"Instruction"`
 	CrossShardBitMap  []int              `json:"CrossShardBitMap"`
+	IsFinalized       bool               `json:"IsFinalized"`
 }
 
 type GetBlockTxResult struct {
@@ -56,7 +58,7 @@ type GetBlockTxResult struct {
 	HexData  string `json:"HexData"`
 }
 
-func NewGetBlocksBeaconResult(block *blockchain.BeaconBlock, size uint64, nextBlockHash string) *GetBeaconBlockResult {
+func NewGetBlocksBeaconResult(block *blockchain.BeaconBlock, size uint64, nextBlockHash string, isFinalized bool) *GetBeaconBlockResult {
 	getBlockResult := &GetBeaconBlockResult{}
 	getBlockResult.Version = block.Header.Version
 	getBlockResult.Hash = block.Hash().String()
@@ -72,10 +74,11 @@ func NewGetBlocksBeaconResult(block *blockchain.BeaconBlock, size uint64, nextBl
 	getBlockResult.Size = size
 	getBlockResult.NextBlockHash = nextBlockHash
 	getBlockResult.ShardStates = block.Body.ShardState
+	getBlockResult.IsFinalized = isFinalized
 	return getBlockResult
 }
 
-func NewGetBlockResult(block *blockchain.ShardBlock, size uint64, nextBlockHash string) *GetShardBlockResult {
+func NewGetBlockResult(block *blockchain.ShardBlock, size uint64, nextBlockHash string, isFinalized bool) *GetShardBlockResult {
 	getBlockResult := &GetShardBlockResult{}
 	getBlockResult.BlockProducer = block.Header.Producer
 	getBlockResult.ValidationData = block.ValidationData
@@ -113,6 +116,7 @@ func NewGetBlockResult(block *blockchain.ShardBlock, size uint64, nextBlockHash 
 		}
 	}
 	getBlockResult.NextBlockHash = nextBlockHash
+	getBlockResult.IsFinalized = isFinalized
 	return getBlockResult
 }
 

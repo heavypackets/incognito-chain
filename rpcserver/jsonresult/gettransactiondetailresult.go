@@ -3,13 +3,14 @@ package jsonresult
 import (
 	"encoding/json"
 	"errors"
+	"time"
+
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/common/base58"
 	"github.com/incognitochain/incognito-chain/metadata"
 	"github.com/incognitochain/incognito-chain/privacy"
-	"github.com/incognitochain/incognito-chain/privacy/zeroknowledge"
+	zkp "github.com/incognitochain/incognito-chain/privacy/zeroknowledge"
 	"github.com/incognitochain/incognito-chain/transaction"
-	"time"
 )
 
 type TransactionDetail struct {
@@ -42,10 +43,10 @@ type TransactionDetail struct {
 	PrivacyCustomTokenIsPrivacy   bool        `json:"PrivacyCustomTokenIsPrivacy"`
 	PrivacyCustomTokenFee         uint64      `json:"PrivacyCustomTokenFee"`
 
-	IsInMempool bool `json:"IsInMempool"`
-	IsInBlock   bool `json:"IsInBlock"`
-
-	Info string `json:"Info"`
+	IsInMempool bool   `json:"IsInMempool"`
+	IsInBlock   bool   `json:"IsInBlock"`
+	IsFinalized bool   `json:"IsFinalized"`
+	Info        string `json:"Info"`
 }
 
 func NewTransactionDetail(tx metadata.Transaction, blockHash *common.Hash, blockHeight uint64, index int, shardID byte) (*TransactionDetail, error) {

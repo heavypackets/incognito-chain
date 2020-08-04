@@ -77,6 +77,7 @@ func (blockService BlockService) RetrieveShardBlock(hashString string, verbosity
 		return nil, NewRPCError(GetShardBlockByHashError, errD)
 	}
 	result := jsonresult.GetShardBlockResult{}
+	isFinalized := false
 
 	shardID := shardBlock.Header.ShardID
 	if verbosity == "0" {
@@ -130,6 +131,10 @@ func (blockService BlockService) RetrieveShardBlock(hashString string, verbosity
 		for _, tx := range shardBlock.Body.Transactions {
 			result.TxHashes = append(result.TxHashes, tx.Hash().String())
 		}
+		if blockHeight <= blockService.BlockChain.ShardChain[shardID].GetFinalViewHeight() {
+			isFinalized = true
+		}
+		result.IsFinalized = isFinalized
 	} else if verbosity == "2" {
 		best := blockService.BlockChain.GetBestStateShard(byte(shardID)).BestBlock
 
@@ -190,6 +195,10 @@ func (blockService BlockService) RetrieveShardBlock(hashString string, verbosity
 			}
 			result.Txs = append(result.Txs, transactionResult)
 		}
+		if blockHeight <= blockService.BlockChain.ShardChain[shardID].GetFinalViewHeight() {
+			isFinalized = true
+		}
+		result.IsFinalized = isFinalized
 	}
 	return &result, nil
 }
@@ -201,6 +210,7 @@ func (blockService BlockService) RetrieveShardBlockByHeight(blockHeight uint64, 
 		return nil, NewRPCError(GetShardBlockByHashError, errD)
 	}
 	result := []*jsonresult.GetShardBlockResult{}
+
 	for _, shardBlock := range shardBlocks {
 		res := jsonresult.GetShardBlockResult{}
 		shardID := shardBlock.Header.ShardID
@@ -253,6 +263,11 @@ func (blockService BlockService) RetrieveShardBlockByHeight(blockHeight uint64, 
 			for _, tx := range shardBlock.Body.Transactions {
 				res.TxHashes = append(res.TxHashes, tx.Hash().String())
 			}
+			isFinalized := false
+			if blockHeight <= blockService.BlockChain.BeaconChain.GetFinalViewHeight() {
+				isFinalized = true
+			}
+			res.IsFinalized = isFinalized
 		} else if verbosity == "2" {
 			best := blockService.BlockChain.GetBestStateShard(shardID).BestBlock
 			blockHeight := shardBlock.Header.Height
@@ -311,8 +326,14 @@ func (blockService BlockService) RetrieveShardBlockByHeight(blockHeight uint64, 
 				}
 				res.Txs = append(res.Txs, transactionT)
 			}
+			isFinalized := false
+			if blockHeight <= blockService.BlockChain.BeaconChain.GetFinalViewHeight() {
+				isFinalized = true
+			}
+			res.IsFinalized = isFinalized
 		}
 		result = append(result, &res)
+
 	}
 	return result, nil
 }
@@ -346,7 +367,11 @@ func (blockService BlockService) RetrieveBeaconBlock(hashString string) (*jsonre
 	if errS != nil {
 		return nil, NewRPCError(UnexpectedError, errS)
 	}
-	result := jsonresult.NewGetBlocksBeaconResult(block, uint64(len(blockBytes)), nextHashString)
+	isFinalized := false
+	if blockHeight <= blockService.BlockChain.BeaconChain.GetFinalViewHeight() {
+		isFinalized = true
+	}
+	result := jsonresult.NewGetBlocksBeaconResult(block, uint64(len(blockBytes)), nextHashString, isFinalized)
 	return result, nil
 }
 
@@ -368,6 +393,7 @@ func (blockService BlockService) RetrieveBeaconBlockByHeight(blockHeight uint64)
 			return nil, NewRPCError(GetBeaconBlockByHeightError, err)
 		}
 	}
+	finalHeight := blockService.BlockChain.BeaconChain.GetFinalViewHeight()
 	for _, beaconBlock := range beaconBlocks {
 		beaconBlockBytes, errS := json.Marshal(beaconBlock)
 		if errS != nil {
@@ -380,7 +406,11 @@ func (blockService BlockService) RetrieveBeaconBlockByHeight(blockHeight uint64)
 				nextHashString = nextBeaconBlock.Header.Hash().String()
 			}
 		}
-		res := jsonresult.NewGetBlocksBeaconResult(beaconBlock, uint64(len(beaconBlockBytes)), nextHashString)
+		isFinalized := false
+		if beaconBlock.Header.Height <= finalHeight {
+			isFinalized = true
+		}
+		res := jsonresult.NewGetBlocksBeaconResult(beaconBlock, uint64(len(beaconBlockBytes)), nextHashString, isFinalized)
 		result = append(result, res)
 	}
 	return result, nil
@@ -417,6 +447,7 @@ func (blockService BlockService) GetBlocks(shardIDParam int, numBlock int) (inte
 	if shardIDParam != -1 {
 		if len(resultShard) == 0 {
 			shardID := byte(shardIDParam)
+			finalViewHeight := blockService.BlockChain.ShardChain[shardID].GetFinalViewHeight()
 			clonedShardBestState, err := blockService.BlockChain.GetClonedAShardBestState(shardID)
 			if err != nil {
 				return nil, NewRPCError(GetClonedShardBestStateError, err)
@@ -430,7 +461,11 @@ func (blockService BlockService) GetBlocks(shardIDParam int, numBlock int) (inte
 					Logger.log.Debugf("handleGetBlocks resultShard: %+v, err: %+v", nil, errD)
 					return nil, NewRPCError(GetShardBlockByHashError, errD)
 				}
-				blockResult := jsonresult.NewGetBlockResult(block, size, common.EmptyString)
+				isFinalized := false
+				if block.Header.Height <= finalViewHeight {
+					isFinalized = true
+				}
+				blockResult := jsonresult.NewGetBlockResult(block, size, common.EmptyString, isFinalized)
 				resultShard = append(resultShard, *blockResult)
 				previousHash = &block.Header.PreviousBlockHash
 				if previousHash.String() == (common.Hash{}).String() {
@@ -451,6 +486,7 @@ func (blockService BlockService) GetBlocks(shardIDParam int, numBlock int) (inte
 		return resultShard, nil
 	} else {
 		if len(resultBeacon) == 0 {
+			finalViewHeight := blockService.BlockChain.BeaconChain.GetFinalViewHeight()
 			clonedBeaconBestState, err := blockService.BlockChain.GetClonedBeaconBestState()
 			if err != nil {
 				return nil, NewRPCError(GetClonedBeaconBestStateError, err)
@@ -463,7 +499,11 @@ func (blockService BlockService) GetBlocks(shardIDParam int, numBlock int) (inte
 				if errD != nil {
 					return nil, NewRPCError(GetBeaconBlockByHashError, errD)
 				}
-				blockResult := jsonresult.NewGetBlocksBeaconResult(block, size, common.EmptyString)
+				isFinalized := false
+				if block.Header.Height <= finalViewHeight {
+					isFinalized = true
+				}
+				blockResult := jsonresult.NewGetBlocksBeaconResult(block, size, common.EmptyString, isFinalized)
 				resultBeacon = append(resultBeacon, *blockResult)
 				previousHash = &block.Header.PreviousBlockHash
 				if previousHash.String() == (common.Hash{}).String() {

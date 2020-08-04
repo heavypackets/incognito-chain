@@ -870,7 +870,7 @@ func (txService TxService) GetTransactionByHash(txHashStr string) (*jsonresult.T
 		return nil, NewRPCError(RPCInvalidParamsError, errors.New("tx hash is invalid"))
 	}
 	Logger.log.Infof("Get Transaction By Hash %+v", *txHash)
-
+	isFinalized := false
 	shardID, blockHash, blockHeight, index, tx, err := txService.BlockChain.GetTransactionByHash(*txHash)
 	if err != nil {
 		// maybe tx is still in tx mempool -> check mempool
@@ -886,12 +886,15 @@ func (txService TxService) GetTransactionByHash(txHashStr string) (*jsonresult.T
 		result.IsInMempool = true
 		return result, nil
 	}
-
+	if blockHeight <= txService.BlockChain.ShardChain[shardID].GetFinalViewHeight() {
+		isFinalized = true
+	}
 	result, err := jsonresult.NewTransactionDetail(tx, &blockHash, blockHeight, index, shardID)
 	if err != nil {
 		return nil, NewRPCError(UnexpectedError, err)
 	}
 	result.IsInBlock = true
+	result.IsFinalized = isFinalized
 	Logger.log.Debugf("handleGetTransactionByHash result: %+v", result)
 	return result, nil
 }
