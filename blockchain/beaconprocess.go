@@ -1453,6 +1453,11 @@ func (blockchain *BlockChain) processStoreBeaconBlock(
 	if err != nil {
 		return NewBlockChainError(ProcessPDEInstructionError, err)
 	}
+	// Save result of BurningConfirm instruction to get proof later
+	err = blockchain.storeBurningConfirm(newBestState.featureStateDB, beaconBlock)
+	if err != nil {
+		return NewBlockChainError(StoreBurningConfirmError, err)
+	}
 
 	// execute, store Portal Instruction
 	//if (blockchain.config.ChainParams.Net == Mainnet) || (blockchain.config.ChainParams.Net == Testnet && beaconBlock.Header.Height > 1500000) {

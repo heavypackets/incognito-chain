@@ -1031,14 +1031,8 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	if err := blockchain.CreateAndSaveCrossTransactionViewPointFromBlock(shardBlock, newShardState.transactionStateDB); err != nil {
 		return NewBlockChainError(FetchAndStoreCrossTransactionError, err)
 	}
-	// Save result of BurningConfirm instruction to get proof later
-	// TODO(@0xbunyip): store on beacon
-	err := blockchain.storeBurningConfirm(newShardState.featureStateDB, shardBlock)
-	if err != nil {
-		return NewBlockChainError(StoreBurningConfirmError, err)
-	}
 	// Update bridge issuancstore sharde request status
-	err = blockchain.updateBridgeIssuanceStatus(newShardState.featureStateDB, shardBlock)
+	err := blockchain.updateBridgeIssuanceStatus(newShardState.featureStateDB, shardBlock)
 	if err != nil {
 		return NewBlockChainError(UpdateBridgeIssuanceStatusError, err)
 	}

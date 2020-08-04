@@ -523,9 +523,8 @@ func (blockchain *BlockChain) processInstructionFromBeacon(curView *ShardBestSta
 //	#4: error
 func (blockchain *BlockChain) generateInstruction(view *ShardBestState, shardID byte, beaconHeight uint64, isOldBeaconHeight bool, beaconBlocks []*BeaconBlock, shardPendingValidator []string, shardCommittee []string, proposeTime int64) ([][]string, []string, []string, error) {
 	var (
-		instructions          = [][]string{}
-		bridgeSwapConfirmInst = []string{}
-		swapInstruction       = []string{}
+		instructions    = [][]string{}
+		swapInstruction = []string{}
 		// err                   error
 	)
 	// if this beacon height has been seen already then DO NOT generate any more instruction
@@ -572,25 +571,6 @@ func (blockchain *BlockChain) generateInstruction(view *ShardBestState, shardID 
 	}
 	if len(swapInstruction) > 0 {
 		instructions = append(instructions, swapInstruction)
-	}
-	if len(bridgeSwapConfirmInst) > 0 {
-		instructions = append(instructions, bridgeSwapConfirmInst)
-		Logger.log.Infof("Build bridge swap confirm inst: %s \n", bridgeSwapConfirmInst)
-	}
-	// Pick BurningConfirm inst and save to bridge block
-	bridgeID := byte(common.BridgeShardID)
-	if shardID == bridgeID {
-		prevBlock := view.BestBlock
-		height := view.ShardHeight + 1
-		confirmInsts := pickBurningConfirmInstruction(beaconBlocks, height)
-		if len(confirmInsts) > 0 {
-			bid := []uint64{}
-			for _, b := range beaconBlocks {
-				bid = append(bid, b.Header.Height)
-			}
-			Logger.log.Infof("Picked burning confirm inst: %s %d %v\n", confirmInsts, prevBlock.Header.Height+1, bid)
-			instructions = append(instructions, confirmInsts...)
-		}
 	}
 
 	return instructions, shardPendingValidator, shardCommittee, nil
