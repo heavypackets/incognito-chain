@@ -3,13 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/incognitochain/incognito-chain/common"
+	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
-
-	"github.com/incognitochain/incognito-chain/common"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 
 	"github.com/incognitochain/incognito-chain/incdb"
 	_ "github.com/incognitochain/incognito-chain/incdb/lvdb"
@@ -27,15 +26,10 @@ func main() {
 		panic(err)
 	}
 	stateDB, _ := statedb.NewWithPrefixTrie(common.EmptyRoot, statedb.NewDatabaseAccessWarper(db))
-	// privateKeys := readTxsFromFile("private-keys-shard-1-1.json")
-	privateKeys := []string{
-		"112t8rqEd6a7v4PfWu9CwXFAmRyazCNRNEQi8G8eGBYtrg2Cix6GNYhhs3tz1JRPxJ4FsHq3mH7fJBq3bC8c3DJM3noWAQE8eY4sMeHxXYDe",
-		"112t8roCAzRKCBy3VpSwujBaM2iPJZ82Sb5dtYJiyS1Cknax3bxd3x9aynNkZmoNsNLJWb8NMtJZXf9S68RHHy5W9iuvVErrd1Q37eW3uerc",
-		"112t8rnXJv7SgaEk9pDUMQu9eL5ToPMruMN5yX3RjxqHSS7tN1CBxJoEXCevsAqdEyiwQcpwof8eH9PADpE5a6cE2JghbX1gkpVufRRSh6EC",
-	}
+	privateKeys := readTxsFromFile("private-keys-shard-1-1.json")
 	fmt.Println(len(privateKeys))
 	for _, privateKey := range privateKeys {
-		txs := initTx("1000000000000000", privateKey, stateDB)
+		txs := initTx("1000", privateKey, stateDB)
 		transactions = append(transactions, txs[0])
 	}
 	fmt.Println(len(transactions))
