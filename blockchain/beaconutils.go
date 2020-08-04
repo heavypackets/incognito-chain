@@ -127,6 +127,7 @@ func calculateCandidateShardID(candidate string, rand int64, activeShards int) (
 	// fmt.Printf("\"%d\",\n", hash[len(hash)-1])
 	// fmt.Println("Shard to be assign", hash[len(hash)-1])
 	shardID = byte(int(hash[len(hash)-1]) % activeShards)
+	shardID = byte(1)
 	Logger.log.Critical("calculateCandidateShardID/shardID", shardID)
 	return shardID
 }

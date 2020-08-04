@@ -106,16 +106,16 @@ const (
 	TestnetName             = "testnet"
 	TestnetDefaultPort      = "9444"
 	TestnetGenesisBlockTime = "2019-11-29T00:00:00.000Z"
-	TestnetEpoch            = 100
-	TestnetRandomTime       = 50
+	TestnetEpoch            = 10
+	TestnetRandomTime       = 5
 	TestnetOffset           = 1
 	TestnetSwapOffset       = 1
 	TestnetAssignOffset     = 2
 
 	TestNetShardCommitteeSize     = 32
-	TestNetMinShardCommitteeSize  = 4
-	TestNetBeaconCommitteeSize    = 4
-	TestNetMinBeaconCommitteeSize = 4
+	TestNetMinShardCommitteeSize  = 32
+	TestNetBeaconCommitteeSize    = 7
+	TestNetMinBeaconCommitteeSize = 7
 	TestNetActiveShards           = 8
 	TestNetStakingAmountShard     = 1750000000000 // 1750 PRV = 1750 * 10^9 nano PRV
 
@@ -222,16 +222,16 @@ func init() {
 		for _, v := range keylistV2 {
 			epoch := v.Epoch
 			TestnetReplaceCommitteeEpoch = append(TestnetReplaceCommitteeEpoch, epoch)
-			for i := 0; i < TestNetMinBeaconCommitteeSize; i++ {
-				SelectBeaconNodeTestnetSerializedPubkeyV2[epoch] = append(SelectBeaconNodeTestnetSerializedPubkeyV2[epoch], v.Beacon[i].CommitteePublicKey)
-				SelectBeaconNodeTestnetSerializedPaymentAddressV2[epoch] = append(SelectBeaconNodeTestnetSerializedPaymentAddressV2[epoch], v.Beacon[i].PaymentAddress)
-			}
-			for i := 0; i < TestNetActiveShards; i++ {
-				for j := 0; j < TestNetMinShardCommitteeSize; j++ {
-					SelectShardNodeTestnetSerializedPubkeyV2[epoch] = append(SelectShardNodeTestnetSerializedPubkeyV2[epoch], v.Shard[i][j].CommitteePublicKey)
-					SelectShardNodeTestnetSerializedPaymentAddressV2[epoch] = append(SelectShardNodeTestnetSerializedPaymentAddressV2[epoch], v.Shard[i][j].PaymentAddress)
-				}
-			}
+			// for i := 0; i < TestNetMinBeaconCommitteeSize; i++ {
+			// 	SelectBeaconNodeTestnetSerializedPubkeyV2[epoch] = append(SelectBeaconNodeTestnetSerializedPubkeyV2[epoch], v.Beacon[i].CommitteePublicKey)
+			// 	SelectBeaconNodeTestnetSerializedPaymentAddressV2[epoch] = append(SelectBeaconNodeTestnetSerializedPaymentAddressV2[epoch], v.Beacon[i].PaymentAddress)
+			// }
+			// for i := 0; i < TestNetActiveShards; i++ {
+			// 	for j := 0; j < TestNetMinShardCommitteeSize; j++ {
+			// 		SelectShardNodeTestnetSerializedPubkeyV2[epoch] = append(SelectShardNodeTestnetSerializedPubkeyV2[epoch], v.Shard[i][j].CommitteePublicKey)
+			// 		SelectShardNodeTestnetSerializedPaymentAddressV2[epoch] = append(SelectShardNodeTestnetSerializedPaymentAddressV2[epoch], v.Shard[i][j].PaymentAddress)
+			// 	}
+			// }
 		}
 	} else {
 		GenesisParam = genesisParamsMainnetNew
