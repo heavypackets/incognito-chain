@@ -67,8 +67,7 @@ func (httpServer *HttpServer) handleGetBeaconSwapProof(params interface{}, close
 		return nil, rpcservice.NewRPCError(rpcservice.UnexpectedError, err)
 	}
 	inst := hex.EncodeToString(decodedInst)
-	bridgeInstProof := &swapProof{}
-	return buildProofResult(inst, beaconInstProof, bridgeInstProof), nil
+	return buildProofResult(inst, beaconInstProof), nil
 }
 
 // getSwapProofOnBeacon finds in a given beacon block a committee swap instruction and returns its proof;
@@ -98,34 +97,6 @@ func getSwapProofOnBeacon(
 		return nil, nil, rpcservice.NewRPCError(rpcservice.UnexpectedError, err)
 	}
 	return proof, b, nil
-}
-
-// getShardAndBeaconBlocks returns a shard block (with all of its instructions) and the included beacon blocks
-func getShardAndBeaconBlocks(
-	height uint64,
-	bc *blockchain.BlockChain,
-) (*blockchain.ShardBlock, []*blockchain.BeaconBlock, error) {
-	bridgeID := byte(common.BridgeShardID)
-	bridgeBlock, err := getSingleShardBlockByHeight(bc, height, bridgeID)
-	if err != nil {
-		return nil, nil, err
-	}
-	beaconBlocks, err := getIncludedBeaconBlocks(
-		bridgeBlock.Header.Height,
-		bridgeBlock.Header.BeaconHeight,
-		bridgeBlock.Header.ShardID,
-		bc,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	bridgeInsts, err := extractInstsFromShardBlock(bridgeBlock, bc)
-	if err != nil {
-		return nil, nil, err
-	}
-	fmt.Println("Bridge Instruction", bridgeInsts)
-	bridgeBlock.Body.Instructions = bridgeInsts
-	return bridgeBlock, beaconBlocks, nil
 }
 
 type block interface {
@@ -187,46 +158,6 @@ func getBeaconSwapProofOnBeacon(
 	insts := b.Body.Instructions
 	block := &beaconBlock{BeaconBlock: b}
 	return buildProofForBlock(block, insts, instID, ce)
-}
-
-// getIncludedBeaconBlocks retrieves all beacon blocks included in a shard block
-func getIncludedBeaconBlocks(
-	shardHeight uint64,
-	beaconHeight uint64,
-	shardID byte,
-	bc *blockchain.BlockChain,
-) ([]*blockchain.BeaconBlock, error) {
-	previousShardBlock, err := getSingleShardBlockByHeight(bc, shardHeight-1, shardID)
-	if err != nil {
-		return nil, err
-	}
-	beaconBlocks, err := blockchain.FetchBeaconBlockFromHeight(
-		bc,
-		previousShardBlock.Header.BeaconHeight+1,
-		beaconHeight,
-	) // All beacon blocks must be finalized, no need to get from finalView
-	if err != nil {
-		return nil, err
-	}
-	return beaconBlocks, nil
-}
-
-// extractInstsFromShardBlock returns all instructions in a shard block as a slice of []string
-func extractInstsFromShardBlock(
-	shardBlock *blockchain.ShardBlock,
-	//beaconBlocks []*blockchain.BeaconBlock,
-	bc *blockchain.BlockChain,
-) ([][]string, error) {
-	instructions, err := blockchain.CreateShardInstructionsFromTransactionAndInstruction(
-		shardBlock.Body.Transactions,
-		bc,
-		shardBlock.Header.ShardID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	shardInsts := append(instructions, shardBlock.Body.Instructions...)
-	return shardInsts, nil
 }
 
 // findCommSwapInst finds a swap instruction in a list, returns it along with its index
@@ -351,7 +282,6 @@ func findBeaconBlockWithInst(beaconBlocks []*blockchain.BeaconBlock, inst []stri
 func buildProofResult(
 	decodedInst string,
 	beaconInstProof *swapProof,
-	bridgeInstProof *swapProof,
 ) jsonresult.GetInstructionProof {
 	return jsonresult.GetInstructionProof{
 		Instruction: decodedInst,
@@ -361,11 +291,60 @@ func buildProofResult(
 		BeaconBlkData:  beaconInstProof.blkData,
 		BeaconSigs:     beaconInstProof.signerSigs,
 		BeaconSigIdxs:  beaconInstProof.sigIdxs,
-
-		BridgeInstPath: bridgeInstProof.instPath,
-		BridgeInstID:   bridgeInstProof.instID,
-		BridgeBlkData:  bridgeInstProof.blkData,
-		BridgeSigs:     bridgeInstProof.signerSigs,
-		BridgeSigIdxs:  bridgeInstProof.sigIdxs,
 	}
+}
+
+func getSingleBlockByHeight(bc *blockchain.BlockChain, height uint64, shardID byte) (block, error) {
+	if shardID != byte(255) {
+		block, err := getSingleShardBlockByHeight(bc, height, shardID)
+		if err != nil {
+			return nil, err
+		}
+		return &shardBlock{block}, nil
+	}
+
+	block, err := getSingleBeaconBlockByHeight(bc, height)
+	if err != nil {
+		return nil, err
+	}
+	return &beaconBlock{block}, nil
+}
+
+func getSingleShardBlockByHeight(bc *blockchain.BlockChain, height uint64, shardID byte) (*blockchain.ShardBlock, error) {
+	block, err := bc.GetShardBlockByView(bc.ShardChain[shardID].GetFinalView(), height, shardID)
+	if err != nil {
+		return nil, err
+	}
+
+	insts, err := extractInstsFromShardBlock(block, bc)
+	if err != nil {
+		return nil, err
+	}
+	block.Body.Instructions = insts
+	return block, nil
+}
+
+func getSingleBeaconBlockByHeight(bc *blockchain.BlockChain, height uint64) (*blockchain.BeaconBlock, error) {
+	beaconBlock, err := bc.GetBeaconBlockByView(bc.BeaconChain.GetFinalView(), height)
+	if err != nil {
+		return nil, fmt.Errorf("cannot find beacon block with height %d %w", height, err)
+	}
+	return beaconBlock, nil
+}
+
+// extractInstsFromShardBlock returns all instructions in a shard block as a slice of []string
+func extractInstsFromShardBlock(
+	shardBlock *blockchain.ShardBlock,
+	bc *blockchain.BlockChain,
+) ([][]string, error) {
+	instructions, err := blockchain.CreateShardInstructionsFromTransactionAndInstruction(
+		shardBlock.Body.Transactions,
+		bc,
+		shardBlock.Header.ShardID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	shardInsts := append(instructions, shardBlock.Body.Instructions...)
+	return shardInsts, nil
 }

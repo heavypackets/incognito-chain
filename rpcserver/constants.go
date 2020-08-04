@@ -149,11 +149,7 @@ const (
 	// Incognito -> Ethereum bridge
 	getBeaconSwapProof       = "getbeaconswapproof"
 	getLatestBeaconSwapProof = "getlatestbeaconswapproof"
-	getBridgeSwapProof       = "getbridgeswapproof"
-	getLatestBridgeSwapProof = "getlatestbridgeswapproof"
 	getBurnProof             = "getburnproof"
-	getFinalityProof         = "getfinalityproof"
-	getAncestorProof         = "getancestorproof"
 
 	// reward
 	CreateRawWithDrawTransaction = "withdrawreward"

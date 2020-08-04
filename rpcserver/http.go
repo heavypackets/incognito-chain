@@ -416,7 +416,7 @@ func (httpServer *HttpServer) addBlackListClientRequestErrorPerHour(r *http.Requ
 	}
 	// pink list method
 	switch method {
-	case getBeaconSwapProof, getLatestBeaconSwapProof, getLatestBridgeSwapProof, getBurnProof, getTransactionByHash, getBridgeReqWithStatus:
+	case getBeaconSwapProof, getLatestBeaconSwapProof, getBurnProof, getTransactionByHash, getBridgeReqWithStatus:
 		return
 	}
 

@@ -137,11 +137,7 @@ var HttpHandler = map[string]httpHandler{
 	// Incognito -> Ethereum bridge
 	getBeaconSwapProof:       (*HttpServer).handleGetBeaconSwapProof,
 	getLatestBeaconSwapProof: (*HttpServer).handleGetLatestBeaconSwapProof,
-	getBridgeSwapProof:       (*HttpServer).handleGetBridgeSwapProof,
-	getLatestBridgeSwapProof: (*HttpServer).handleGetLatestBridgeSwapProof,
 	getBurnProof:             (*HttpServer).handleGetBurnProof,
-	getFinalityProof:         (*HttpServer).handleGetFinalityProof,
-	getAncestorProof:         (*HttpServer).handleGetAncestorProof,
 
 	//reward
 	CreateRawWithDrawTransaction: (*HttpServer).handleCreateAndSendWithDrawTransaction,

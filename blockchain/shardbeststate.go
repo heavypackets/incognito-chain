@@ -32,7 +32,6 @@ type ShardRootHash struct {
 	FeatureStateDBRootHash     common.Hash
 	RewardStateDBRootHash      common.Hash
 	SlashStateDBRootHash       common.Hash
-	BlockStateDBRootHash       common.Hash
 }
 
 type ShardBestState struct {
@@ -72,8 +71,6 @@ type ShardBestState struct {
 	RewardStateDBRootHash      common.Hash
 	slashStateDB               *statedb.StateDB
 	SlashStateDBRootHash       common.Hash
-	blockStateDB               *statedb.StateDB
-	BlockStateDBRootHash       common.Hash
 }
 
 func (shardBestState *ShardBestState) GetCopiedConsensusStateDB() *statedb.StateDB {
@@ -168,10 +165,6 @@ func (shardBestState *ShardBestState) InitStateRootHash(db incdb.Database, bc *B
 		return err
 	}
 	shardBestState.slashStateDB, err = statedb.NewWithPrefixTrie(shardBestState.SlashStateDBRootHash, dbAccessWarper)
-	if err != nil {
-		return err
-	}
-	shardBestState.blockStateDB, err = statedb.NewWithPrefixTrie(shardBestState.BlockStateDBRootHash, dbAccessWarper)
 	if err != nil {
 		return err
 	}
@@ -324,7 +317,6 @@ func (shardBestState *ShardBestState) cloneShardBestStateFrom(target *ShardBestS
 	shardBestState.featureStateDB = target.featureStateDB.Copy()
 	shardBestState.rewardStateDB = target.rewardStateDB.Copy()
 	shardBestState.slashStateDB = target.slashStateDB.Copy()
-	shardBestState.blockStateDB = target.blockStateDB.Copy()
 
 	shardBestState.BestBlock = target.BestBlock
 
@@ -397,21 +389,4 @@ func (blockchain *BlockChain) GetShardRootsHash(shardBestState *ShardBestState, 
 	sRH := &ShardRootHash{}
 	err = json.Unmarshal(data, sRH)
 	return sRH, err
-}
-
-func (blockchain *BlockChain) GetFinalizedShardBlockRootHash(height uint64, shardID byte) (common.Hash, error) {
-	h, e := blockchain.GetShardBlockHashByView(blockchain.ShardChain[shardID].GetFinalView(), height)
-	if e != nil {
-		return common.Hash{}, e
-	}
-
-	data, e := rawdbv2.GetShardRootsHash(blockchain.GetBeaconChainDatabase(), shardID, *h)
-	if e != nil {
-		return common.Hash{}, e
-	}
-	sRH := &ShardRootHash{}
-	if e := json.Unmarshal(data, sRH); e != nil {
-		return common.Hash{}, e
-	}
-	return sRH.BlockStateDBRootHash, nil
 }

@@ -725,33 +725,11 @@ func (shardBestState *ShardBestState) initShardBestState(blockchain *BlockChain,
 	if err != nil {
 		return err
 	}
-	shardBestState.blockStateDB, err = statedb.NewWithPrefixTrie(common.EmptyRoot, dbAccessWarper)
-	if err != nil {
-		return err
-	}
 	shardBestState.ConsensusStateDBRootHash = common.EmptyRoot
 	shardBestState.SlashStateDBRootHash = common.EmptyRoot
 	shardBestState.RewardStateDBRootHash = common.EmptyRoot
 	shardBestState.FeatureStateDBRootHash = common.EmptyRoot
 	shardBestState.TransactionStateDBRootHash = common.EmptyRoot
-	shardBestState.BlockStateDBRootHash = common.EmptyRoot
-
-	// Block merkle tree: insert dummy block with height 0
-	if genesisShardBlock.Header.ShardID == common.BridgeShardID {
-		if newRootHash, err := addToBlockMerkle(
-			shardBestState.blockStateDB,
-			genesisShardBlock.Header.ShardID,
-			genesisShardBlock.Header.Height-1,
-			genesisShardBlock.Header.PreviousBlockHash,
-		); err != nil {
-			return err
-		} else {
-			if err := shardBestState.blockStateDB.Database().TrieDB().Commit(newRootHash, false); err != nil {
-				return err
-			}
-			shardBestState.BlockStateDBRootHash = newRootHash
-		}
-	}
 
 	//statedb===========================END
 	return nil
@@ -1054,6 +1032,7 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 		return NewBlockChainError(FetchAndStoreCrossTransactionError, err)
 	}
 	// Save result of BurningConfirm instruction to get proof later
+	// TODO(@0xbunyip): store on beacon
 	err := blockchain.storeBurningConfirm(newShardState.featureStateDB, shardBlock)
 	if err != nil {
 		return NewBlockChainError(StoreBurningConfirmError, err)
@@ -1107,31 +1086,6 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	err = statedb.DeleteOneShardCommittee(newShardState.consensusStateDB, shardID, committeeChange.shardCommitteeRemoved[shardID])
 	if err != nil {
 		return NewBlockChainError(StoreShardBlockError, err)
-	}
-	var blockRootHash common.Hash
-	if shardID == common.BridgeShardID {
-		// Update swapID
-		if err := updateSwapID(
-			newShardState.blockStateDB,
-			shardID,
-			shardBlock.Header.Height,
-			shardBlock.Body.Instructions,
-			metadata.BridgeSwapConfirmMeta,
-		); err != nil {
-			return NewBlockChainError(StoreShardBlockError, err)
-		}
-
-		// Blocks merkle tree
-		if blockRootHash, err = addToBlockMerkle(
-			newShardState.blockStateDB,
-			shardID,
-			shardBlock.Header.Height-1,
-			shardBlock.Header.PreviousBlockHash,
-		); err != nil {
-			return NewBlockChainError(StoreShardBlockError, err)
-		}
-
-		newShardState.BlockStateDBRootHash = blockRootHash
 	}
 	//err = statedb.DeleteOneShardSubstitutesValidator(newShardState.consensusStateDB, shardID, removedSubstitutesValidator)
 	err = statedb.DeleteOneShardSubstitutesValidator(newShardState.consensusStateDB, shardID, committeeChange.shardSubstituteRemoved[shardID])
@@ -1195,7 +1149,6 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 	newShardState.featureStateDB.ClearObjects()
 	newShardState.rewardStateDB.ClearObjects()
 	newShardState.slashStateDB.ClearObjects()
-	newShardState.blockStateDB.ClearObjects()
 
 	batchData := blockchain.GetShardChainDatabase(shardID).NewBatch()
 	sRH := ShardRootHash{
@@ -1204,7 +1157,6 @@ func (blockchain *BlockChain) processStoreShardBlock(newShardState *ShardBestSta
 		RewardStateDBRootHash:      rewardRootHash,
 		SlashStateDBRootHash:       slashRootHash,
 		TransactionStateDBRootHash: transactionRootHash,
-		BlockStateDBRootHash:       blockRootHash,
 	}
 
 	if err := rawdbv2.StoreShardRootsHash(batchData, shardID, blockHash, sRH); err != nil {

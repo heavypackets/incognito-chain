@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
-	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/incognitokey"
@@ -570,24 +569,6 @@ func (blockchain *BlockChain) generateInstruction(view *ShardBestState, shardID 
 			}
 			shardCommittee = append(fixedProducerShardValidators, shardCommittee...)
 		}
-		// NOTE: shardCommittee must be finalized before building Bridge instruction here
-		// shardCommittee must include all producers and validators in the right order
-		// Generate instruction storing merkle root of validators pubkey and send to beacon
-		bridgeID := byte(common.BridgeShardID)
-		if shardID == bridgeID && committeeChanged(swapInstruction) {
-			swapID, err := statedb.GetSwapIDForBlock(view.blockStateDB, shardID, view.ShardHeight)
-			if err != nil {
-				return instructions, shardPendingValidator, shardCommittee, fmt.Errorf("error getting swapID for shardID = %v, block = %v: %w", shardID, view.ShardHeight, err)
-			}
-			fmt.Println("[db] latest bridge SWAPID:", swapID)
-			blockHeight := view.ShardHeight + 1
-			bridgeSwapConfirmInst, err = buildBridgeSwapConfirmInstruction(shardCommittee, blockHeight, swapID+1)
-			if err != nil {
-				BLogger.log.Error(err)
-				return instructions, shardPendingValidator, shardCommittee, err
-			}
-			BLogger.log.Infof("Add Bridge swap inst in ShardID %+v block %d", shardID, blockHeight)
-		}
 	}
 	if len(swapInstruction) > 0 {
 		instructions = append(instructions, swapInstruction)
@@ -610,21 +591,6 @@ func (blockchain *BlockChain) generateInstruction(view *ShardBestState, shardID 
 			Logger.log.Infof("Picked burning confirm inst: %s %d %v\n", confirmInsts, prevBlock.Header.Height+1, bid)
 			instructions = append(instructions, confirmInsts...)
 		}
-	}
-
-	// Add instruction storing merkle root of all blocks in this view
-	if shardID == bridgeID {
-		blkRootInst, err := buildBlockMerkleRootInstruction(
-			view.blockStateDB,
-			shardID,
-			view.ShardHeight,
-			view.BestBlockHash,
-			proposeTime,
-		)
-		if err != nil {
-			return instructions, shardPendingValidator, shardCommittee, err
-		}
-		instructions = append(instructions, blkRootInst)
 	}
 
 	return instructions, shardPendingValidator, shardCommittee, nil

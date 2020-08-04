@@ -62,53 +62,26 @@ func getBurnProofByHeight(
 	height uint64,
 	txID *common.Hash,
 ) (interface{}, *rpcservice.RPCError) {
-
+	// TODO(@0xbunyip): get beacon block from txid
 	// Get bridge block and corresponding beacon blocks
-	bridgeBlock, beaconBlocks, err := getShardAndBeaconBlocks(height, httpServer.GetBlockchain())
-	if err != nil {
-		return nil, rpcservice.NewRPCError(rpcservice.UnexpectedError, err)
-	}
-	// Get proof of instruction on bridge
-	bridgeInstProof, err := getBurnProofOnBridge(burningMetaType, txID, bridgeBlock, httpServer.config.ConsensusEngine)
-	if err != nil {
-		return nil, rpcservice.NewRPCError(rpcservice.UnexpectedError, err)
-	}
-	fmt.Println("bridgeInstProof", bridgeInstProof)
-	// Get proof of instruction on beacon
-	beaconInstProof, err := getBurnProofOnBeacon(bridgeInstProof.inst, beaconBlocks, httpServer.config.ConsensusEngine)
-	if err != nil {
-		return nil, rpcservice.NewRPCError(rpcservice.UnexpectedError, err)
-	}
+	// bridgeBlock, beaconBlocks, err := getShardAndBeaconBlocks(height, httpServer.GetBlockchain())
+	// if err != nil {
+	// 	return nil, rpcservice.NewRPCError(rpcservice.UnexpectedError, err)
+	// }
+	// // Get proof of instruction on beacon
+	// beaconInstProof, err := getBurnProofOnBeacon(bridgeInstProof.inst, beaconBlocks, httpServer.config.ConsensusEngine)
+	// if err != nil {
+	// 	return nil, rpcservice.NewRPCError(rpcservice.UnexpectedError, err)
+	// }
+	beaconInstProof := &swapProof{}
 	fmt.Println("beaconInstProof", beaconInstProof)
 	// Decode instruction to send to Ethereum without having to decode on client
-	decodedInst, bridgeHeight, beaconHeight := splitAndDecodeInst(bridgeInstProof.inst, beaconInstProof.inst)
+	decodedInst, beaconHeight := splitAndDecodeInst(beaconInstProof.inst)
 	fmt.Println("decodedInst", decodedInst)
-	fmt.Println("bridgeHeight", bridgeHeight)
 	fmt.Println("beaconHeight", beaconHeight)
 	//decodedInst := hex.EncodeToString(blockchain.DecodeInstruction(bridgeInstProof.inst))
 
-	return buildProofResult(decodedInst, beaconInstProof, bridgeInstProof), nil
-}
-
-// getBurnProofOnBridge finds a beacon committee swap instruction in a given bridge block and returns its proof
-func getBurnProofOnBridge(
-	burningMetaType int,
-	txID *common.Hash,
-	bridgeBlock *blockchain.ShardBlock,
-	ce ConsensusEngine,
-) (*swapProof, error) {
-	insts := bridgeBlock.Body.Instructions
-	_, instID := findBurnConfirmInst(burningMetaType, insts, txID)
-	if instID < 0 {
-		return nil, fmt.Errorf("cannot find burning instruction in bridge block")
-	}
-
-	block := &shardBlock{ShardBlock: bridgeBlock}
-	proof, err := buildProofForBlock(block, insts, instID, ce)
-	if err != nil {
-		return nil, err
-	}
-	return proof, nil
+	return buildProofResult(decodedInst, beaconInstProof), nil
 }
 
 // getBurnProofOnBeacon finds in given beacon blocks a BurningConfirm instruction and returns its proof
@@ -172,18 +145,16 @@ func findBurnConfirmInst(
 	return nil, -1
 }
 
-// splitAndDecodeInst splits BurningConfirm insts (on beacon and bridge) into 3 parts: the inst itself, bridgeHeight and beaconHeight that contains the inst
-func splitAndDecodeInst(bridgeInst, beaconInst []string) (string, string, string) {
+// splitAndDecodeInst splits BurningConfirm insts (on beacon) into 2 parts: the inst itselfand the beaconHeight that contains the inst
+func splitAndDecodeInst(beaconInst []string) (string, string) {
 	// Decode instructions
-	bridgeInstFlat, _ := blockchain.DecodeInstruction(bridgeInst)
 	beaconInstFlat, _ := blockchain.DecodeInstruction(beaconInst)
 
 	// Split of last 32 bytes (block height)
-	bridgeHeight := hex.EncodeToString(bridgeInstFlat[len(bridgeInstFlat)-32:])
 	beaconHeight := hex.EncodeToString(beaconInstFlat[len(beaconInstFlat)-32:])
 
-	decodedInst := hex.EncodeToString(bridgeInstFlat[:len(bridgeInstFlat)-32])
-	return decodedInst, bridgeHeight, beaconHeight
+	decodedInst := hex.EncodeToString(beaconInstFlat[:len(beaconInstFlat)-32])
+	return decodedInst, beaconHeight
 }
 
 // handleGetBurnProof returns a proof of a tx burning pETH

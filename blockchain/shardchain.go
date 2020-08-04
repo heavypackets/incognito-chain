@@ -165,20 +165,12 @@ func (chain *ShardChain) CreateNewBlock(version int, proposer string, round int,
 }
 
 func (chain *ShardChain) CreateNewBlockFromOldBlock(oldBlock common.BlockInterface, proposer string, startTime int64) (common.BlockInterface, error) {
-	// TODO(@0xbunyip): discuss if we can still create new block from old block
-	newBlock, err := chain.CreateNewBlock(2, proposer, 1, startTime)
-	if err != nil {
-		return nil, err
-	}
-	newBlock.(*ShardBlock).Header.Timestamp = oldBlock.GetProduceTime() // Set produce time as previous one
+	b, _ := json.Marshal(oldBlock)
+	newBlock := new(ShardBlock)
+	json.Unmarshal(b, &newBlock)
+	newBlock.Header.Proposer = proposer
+	newBlock.Header.ProposeTime = startTime
 	return newBlock, nil
-
-	// b, _ := json.Marshal(oldBlock)
-	// newBlock := new(ShardBlock)
-	// json.Unmarshal(b, &newBlock)
-	// newBlock.Header.Proposer = proposer
-	// newBlock.Header.ProposeTime = startTime
-	// return newBlock, nil
 }
 
 // func (chain *ShardChain) ValidateAndInsertBlock(block common.BlockInterface) error {
