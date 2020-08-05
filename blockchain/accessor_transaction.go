@@ -600,3 +600,64 @@ func (blockchain *BlockChain) CreateAndSaveCrossTransactionViewPointFromBlock(sh
 	}
 	return nil
 }
+
+//GetListOutputCoinsByKeysetFinalized - Read all blocks to get txs(not action tx) which can be decrypt by readonly secret key.
+//With private-key, we can check unspent tx by check serialNumber from database
+//- Param #1: keyset - (priv-key, payment-address, readonlykey)
+//in case priv-key: return unspent outputcoin tx
+//in case readonly-key: return all outputcoin tx with amount value
+//in case payment-address: return all outputcoin tx with no amount value
+//- Param #2: coinType - which type of joinsplitdesc(COIN or BOND)
+func (blockchain *BlockChain) GetListOutputCoinsByKeysetFinalized(keyset *incognitokey.KeySet, shardID byte, tokenID *common.Hash) ([]*privacy.OutputCoin, error) {
+	var outCointsInBytes [][]byte
+	var err error
+	transactionStateDB := blockchain.GetFinalStateShard(shardID).GetCopiedTransactionStateDB()
+	if keyset == nil {
+		return nil, NewBlockChainError(GetListOutputCoinsByKeysetError, fmt.Errorf("invalid key set, got keyset %+v", keyset))
+	}
+	if blockchain.config.MemCache != nil {
+		// get from cache
+		cachedKey := memcache.GetListOutputcoinCachedKey(keyset.PaymentAddress.Pk[:], tokenID, shardID)
+		cachedData, _ := blockchain.config.MemCache.Get(cachedKey)
+		if cachedData != nil && len(cachedData) > 0 {
+			// try to parsing on outCointsInBytes
+			_ = json.Unmarshal(cachedData, &outCointsInBytes)
+		}
+		if len(outCointsInBytes) == 0 {
+			// cached data is nil or fail -> get from database
+			outCointsInBytes, err = statedb.GetOutcoinsByPubkey(transactionStateDB, *tokenID, keyset.PaymentAddress.Pk[:], shardID)
+			if len(outCointsInBytes) > 0 {
+				// cache 1 day for result
+				cachedData, err = json.Marshal(outCointsInBytes)
+				if err == nil {
+					blockchain.config.MemCache.PutExpired(cachedKey, cachedData, 1*24*60*60*time.Millisecond)
+				}
+			}
+		}
+	}
+	if len(outCointsInBytes) == 0 {
+		outCointsInBytes, err = statedb.GetOutcoinsByPubkey(transactionStateDB, *tokenID, keyset.PaymentAddress.Pk[:], shardID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// convert from []byte to object
+	outCoins := make([]*privacy.OutputCoin, 0)
+	for _, item := range outCointsInBytes {
+		outcoin := &privacy.OutputCoin{}
+		outcoin.Init()
+		outcoin.SetBytes(item)
+		outCoins = append(outCoins, outcoin)
+	}
+	// loop on all outputcoin to decrypt data
+	results := make([]*privacy.OutputCoin, 0)
+	for _, out := range outCoins {
+		decryptedOut := DecryptOutputCoinByKey(transactionStateDB, out, keyset, tokenID, shardID)
+		if decryptedOut == nil {
+			continue
+		} else {
+			results = append(results, decryptedOut)
+		}
+	}
+	return results, nil
+}

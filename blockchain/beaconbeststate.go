@@ -141,6 +141,10 @@ func (bc *BlockChain) GetBeaconBestState() *BeaconBestState {
 	return bc.BeaconChain.multiView.GetBestView().(*BeaconBestState)
 }
 
+func (bc *BlockChain) GetBeaconFinalState() *BeaconBestState {
+	return bc.BeaconChain.multiView.GetFinalView().(*BeaconBestState)
+}
+
 func (beaconBestState *BeaconBestState) InitStateRootHash(bc *BlockChain) error {
 	db := bc.GetBeaconChainDatabase()
 	var err error

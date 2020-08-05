@@ -145,6 +145,13 @@ func (blockchain *BlockChain) GetBestStateShard(shardID byte) *ShardBestState {
 	return blockchain.ShardChain[int(shardID)].multiView.GetBestView().(*ShardBestState)
 }
 
+func (blockchain *BlockChain) GetFinalStateShard(shardID byte) *ShardBestState {
+	if blockchain.ShardChain[int(shardID)].multiView.GetFinalView() == nil {
+		return nil
+	}
+	return blockchain.ShardChain[int(shardID)].multiView.GetFinalView().(*ShardBestState)
+}
+
 func (shardBestState *ShardBestState) InitStateRootHash(db incdb.Database, bc *BlockChain) error {
 	var err error
 	var dbAccessWarper = statedb.NewDatabaseAccessWarper(db)

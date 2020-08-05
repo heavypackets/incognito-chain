@@ -95,6 +95,11 @@ const (
 	createAndSendStakingTransaction            = "createandsendstakingtransaction"
 	createAndSendStopAutoStakingTransaction    = "createandsendstopautostakingtransaction"
 	decryptoutputcoinbykeyoftransaction        = "decryptoutputcoinbykeyoftransaction"
+	getBalanceFinalized                        = "getbalancefinalized"
+	getListPrivacyCustomTokenBalanceFinalized  = "getlistprivacycustomtokenbalancefinalized"
+	getBalanceByPrivatekeyFinalized            = "getbalancebyprivatekeyfinalized"
+	getBalanceByPaymentAddressFinalized        = "getbalancebypaymentaddressfinalized"
+	getBalancePrivacyCustomTokenFinalized      = "getbalanceprivacycustomtokenfinalized"
 
 	//===========For Testing and Benchmark==============
 	getAndSendTxsFromFile   = "getandsendtxsfromfile"

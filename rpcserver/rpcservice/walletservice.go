@@ -228,3 +228,100 @@ func (walletService WalletService) GetReceivedByAccount(accountName string) (uin
 	}
 	return balance, nil
 }
+
+func (walletService WalletService) GetBalanceFinalized(accountName string) (uint64, *RPCError) {
+	prvCoinID := &common.Hash{}
+	err1 := prvCoinID.SetBytes(common.PRVCoinID[:])
+	if err1 != nil {
+		return uint64(0), NewRPCError(TokenIsInvalidError, err1)
+	}
+
+	balance := uint64(0)
+	if accountName == "*" {
+		// get balance for all accounts in wallet
+		for _, account := range walletService.Wallet.MasterAccount.Child {
+			lastByte := account.Key.KeySet.PaymentAddress.Pk[len(account.Key.KeySet.PaymentAddress.Pk)-1]
+			shardIDSender := common.GetShardIDFromLastByte(lastByte)
+			outCoins, err := walletService.BlockChain.GetListOutputCoinsByKeysetFinalized(&account.Key.KeySet, shardIDSender, prvCoinID)
+			if err != nil {
+				return uint64(0), NewRPCError(UnexpectedError, err)
+			}
+			for _, out := range outCoins {
+				balance += out.CoinDetails.GetValue()
+			}
+		}
+	} else {
+		for _, account := range walletService.Wallet.MasterAccount.Child {
+			if account.Name == accountName {
+				// get balance for accountName in wallet
+				lastByte := account.Key.KeySet.PaymentAddress.Pk[len(account.Key.KeySet.PaymentAddress.Pk)-1]
+				shardIDSender := common.GetShardIDFromLastByte(lastByte)
+				outCoins, err := walletService.BlockChain.GetListOutputCoinsByKeysetFinalized(&account.Key.KeySet, shardIDSender, prvCoinID)
+				if err != nil {
+					return uint64(0), NewRPCError(UnexpectedError, err)
+				}
+				for _, out := range outCoins {
+					balance += out.CoinDetails.GetValue()
+				}
+				break
+			}
+		}
+	}
+
+	return balance, nil
+}
+
+func (walletService WalletService) GetBalanceByPrivateKeyFinalized(privateKey string) (uint64, *RPCError) {
+	keySet, shardIDSender, err := GetKeySetFromPrivateKeyParams(privateKey)
+	if err != nil {
+		return uint64(0), NewRPCError(RPCInvalidParamsError, err)
+	}
+	if keySet == nil {
+		return uint64(0), NewRPCError(InvalidSenderPrivateKeyError, err)
+	}
+	prvCoinID := &common.Hash{}
+	err = prvCoinID.SetBytes(common.PRVCoinID[:])
+	if err != nil {
+		return uint64(0), NewRPCError(TokenIsInvalidError, err)
+	}
+	outcoints, err := walletService.BlockChain.GetListOutputCoinsByKeysetFinalized(keySet, shardIDSender, prvCoinID)
+	log.Println(err)
+	if err != nil {
+		return uint64(0), NewRPCError(UnexpectedError, err)
+	}
+
+	balance := uint64(0)
+	for _, out := range outcoints {
+		balance += out.CoinDetails.GetValue()
+	}
+	log.Println(balance)
+
+	return balance, nil
+}
+
+func (walletService WalletService) GetBalanceByPaymentAddressFinalized(paymentAddress string) (uint64, *RPCError) {
+	keySet, shardIDSender, err := GetKeySetFromPaymentAddressParam(paymentAddress)
+	if err != nil {
+		return uint64(0), NewRPCError(RPCInvalidParamsError, errors.New("payment address is invalid"))
+	}
+
+	prvCoinID := &common.Hash{}
+	err1 := prvCoinID.SetBytes(common.PRVCoinID[:])
+	if err1 != nil {
+		return uint64(0), NewRPCError(TokenIsInvalidError, err1)
+	}
+	outcoints, err := walletService.BlockChain.GetListOutputCoinsByKeysetFinalized(keySet, shardIDSender, prvCoinID)
+	Logger.log.Debugf("OutCoins: %+v", outcoints)
+	Logger.log.Debugf("shardIDSender: %+v", shardIDSender)
+	Logger.log.Debugf("accountWithPaymentAddress.KeySet: %+v", keySet)
+	Logger.log.Debugf("paymentAddressParam: %+v", paymentAddress)
+	if err != nil {
+		return uint64(0), NewRPCError(UnexpectedError, err)
+	}
+	balance := uint64(0)
+	for _, out := range outcoints {
+		balance += out.CoinDetails.GetValue()
+	}
+
+	return balance, nil
+}

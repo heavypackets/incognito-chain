@@ -113,7 +113,11 @@ var HttpHandler = map[string]httpHandler{
 	privacyCustomTokenTxs:                      (*HttpServer).handlePrivacyCustomTokenDetail,
 	getListPrivacyCustomTokenBalance:           (*HttpServer).handleGetListPrivacyCustomTokenBalance,
 	getBalancePrivacyCustomToken:               (*HttpServer).handleGetBalancePrivacyCustomToken,
-
+	getBalanceFinalized:                        (*HttpServer).handleGetBalanceFinalized,
+	getListPrivacyCustomTokenBalanceFinalized:  (*HttpServer).handleGetListPrivacyCustomTokenBalanceFinalized,
+	getBalanceByPrivatekeyFinalized:            (*HttpServer).handleGetBalanceByPrivatekeyFinalized,
+	getBalanceByPaymentAddressFinalized:        (*HttpServer).handleGetBalanceByPaymentAddressFinalized,
+	getBalancePrivacyCustomTokenFinalized:      (*HttpServer).handleGetBalancePrivacyCustomTokenFinalized,
 	// Bridge
 	createIssuingRequest:            (*HttpServer).handleCreateIssuingRequest,
 	sendIssuingRequest:              (*HttpServer).handleSendIssuingRequest,
