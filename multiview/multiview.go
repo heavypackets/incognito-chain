@@ -153,11 +153,21 @@ func (multiView *MultiView) updateViewState(newView View) {
 		if prev1View == nil || multiView.finalView.GetHeight() == prev1View.GetHeight() {
 			return
 		}
+
+		//two sequential propose time slot
 		bestViewTimeSlot := common.CalculateTimeSlot(multiView.bestView.GetBlock().GetProposeTime())
 		prev1TimeSlot := common.CalculateTimeSlot(prev1View.GetBlock().GetProposeTime())
-		if prev1TimeSlot+1 == bestViewTimeSlot { //three sequential time slot
+		if prev1TimeSlot+1 == bestViewTimeSlot {
 			multiView.finalView = prev1View
 		}
+
+		//two sequential produce timeslot
+		bestViewTimeSlot = common.CalculateTimeSlot(multiView.bestView.GetBlock().GetProduceTime())
+		prev1TimeSlot = common.CalculateTimeSlot(prev1View.GetBlock().GetProduceTime())
+		if prev1TimeSlot+1 == bestViewTimeSlot {
+			multiView.finalView = prev1View
+		}
+
 	} else {
 		fmt.Println("Block version is not correct")
 	}
