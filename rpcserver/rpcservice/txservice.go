@@ -895,6 +895,24 @@ func (txService TxService) GetTransactionByHash(txHashStr string) (*jsonresult.T
 	}
 	result.IsInBlock = true
 	result.IsFinalized = isFinalized
+	if result.IsFinalized {
+		result.InBestView = true
+		result.NumberOfConfirmation = int(txService.BlockChain.GetBestStateShard(shardID).ShardHeight - result.BlockHeight)
+	} else {
+		result.InBestView = false
+		result.NumberOfConfirmation = -1
+		prevBlockHash := txService.BlockChain.GetBestStateShard(shardID).Hash().String()
+		for {
+			if prevBlockHash == result.BlockHash {
+				result.InBestView = true
+				result.NumberOfConfirmation = int(txService.BlockChain.GetBestStateShard(shardID).ShardHeight - result.BlockHeight)
+			}
+			if prevBlockHash == txService.BlockChain.ShardChain[shardID].GetFinalViewHash() {
+				break
+			}
+			prevBlockHash = txService.BlockChain.GetBestStateShard(shardID).Hash().String()
+		}
+	}
 	Logger.log.Debugf("handleGetTransactionByHash result: %+v", result)
 	return result, nil
 }

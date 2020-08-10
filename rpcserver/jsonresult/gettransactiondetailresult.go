@@ -43,10 +43,12 @@ type TransactionDetail struct {
 	PrivacyCustomTokenIsPrivacy   bool        `json:"PrivacyCustomTokenIsPrivacy"`
 	PrivacyCustomTokenFee         uint64      `json:"PrivacyCustomTokenFee"`
 
-	IsInMempool bool   `json:"IsInMempool"`
-	IsInBlock   bool   `json:"IsInBlock"`
-	IsFinalized bool   `json:"IsFinalized"`
-	Info        string `json:"Info"`
+	IsInMempool          bool   `json:"IsInMempool"`
+	IsInBlock            bool   `json:"IsInBlock"`
+	IsFinalized          bool   `json:"IsFinalized"`
+	InBestView           bool   `json:"InBestView"`
+	NumberOfConfirmation int    `json:"NumberOfConfirmation"`
+	Info                 string `json:"Info"`
 }
 
 func NewTransactionDetail(tx metadata.Transaction, blockHash *common.Hash, blockHeight uint64, index int, shardID byte) (*TransactionDetail, error) {

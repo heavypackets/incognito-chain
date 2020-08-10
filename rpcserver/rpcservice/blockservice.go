@@ -135,6 +135,24 @@ func (blockService BlockService) RetrieveShardBlock(hashString string, verbosity
 			isFinalized = true
 		}
 		result.IsFinalized = isFinalized
+		if result.IsFinalized {
+			result.InBestView = true
+			result.NumberOfConfirmation = int(blockService.BlockChain.GetBestStateShard(shardID).ShardHeight - result.Height)
+		} else {
+			result.InBestView = false
+			result.NumberOfConfirmation = -1
+			prevBlockHash := blockService.BlockChain.GetBestStateShard(shardID).Hash().String()
+			for {
+				if prevBlockHash == result.Hash {
+					result.InBestView = true
+					result.NumberOfConfirmation = int(blockService.BlockChain.GetBestStateShard(shardID).ShardHeight - result.Height)
+				}
+				if prevBlockHash == blockService.BlockChain.ShardChain[shardID].GetFinalViewHash() {
+					break
+				}
+				prevBlockHash = blockService.BlockChain.GetBestStateShard(shardID).Hash().String()
+			}
+		}
 	} else if verbosity == "2" {
 		best := blockService.BlockChain.GetBestStateShard(byte(shardID)).BestBlock
 
@@ -199,6 +217,24 @@ func (blockService BlockService) RetrieveShardBlock(hashString string, verbosity
 			isFinalized = true
 		}
 		result.IsFinalized = isFinalized
+		if result.IsFinalized {
+			result.InBestView = true
+			result.NumberOfConfirmation = int(blockService.BlockChain.GetBestStateShard(shardID).ShardHeight - result.Height)
+		} else {
+			result.InBestView = false
+			result.NumberOfConfirmation = -1
+			prevBlockHash := blockService.BlockChain.GetBestStateShard(shardID).Hash().String()
+			for {
+				if prevBlockHash == result.Hash {
+					result.InBestView = true
+					result.NumberOfConfirmation = int(blockService.BlockChain.GetBestStateShard(shardID).ShardHeight - result.Height)
+				}
+				if prevBlockHash == blockService.BlockChain.ShardChain[shardID].GetFinalViewHash() {
+					break
+				}
+				prevBlockHash = blockService.BlockChain.GetBestStateShard(shardID).Hash().String()
+			}
+		}
 	}
 	return &result, nil
 }
@@ -268,6 +304,24 @@ func (blockService BlockService) RetrieveShardBlockByHeight(blockHeight uint64, 
 				isFinalized = true
 			}
 			res.IsFinalized = isFinalized
+			if res.IsFinalized {
+				res.InBestView = true
+				res.NumberOfConfirmation = int(blockService.BlockChain.GetBestStateShard(shardID).ShardHeight - res.Height)
+			} else {
+				res.InBestView = false
+				res.NumberOfConfirmation = -1
+				prevBlockHash := blockService.BlockChain.GetBestStateShard(shardID).Hash().String()
+				for {
+					if prevBlockHash == res.Hash {
+						res.InBestView = true
+						res.NumberOfConfirmation = int(blockService.BlockChain.GetBestStateShard(shardID).ShardHeight - res.Height)
+					}
+					if prevBlockHash == blockService.BlockChain.ShardChain[shardID].GetFinalViewHash() {
+						break
+					}
+					prevBlockHash = blockService.BlockChain.GetBestStateShard(shardID).Hash().String()
+				}
+			}
 		} else if verbosity == "2" {
 			best := blockService.BlockChain.GetBestStateShard(shardID).BestBlock
 			blockHeight := shardBlock.Header.Height
@@ -331,6 +385,24 @@ func (blockService BlockService) RetrieveShardBlockByHeight(blockHeight uint64, 
 				isFinalized = true
 			}
 			res.IsFinalized = isFinalized
+			if res.IsFinalized {
+				res.InBestView = true
+				res.NumberOfConfirmation = int(blockService.BlockChain.GetBestStateShard(shardID).ShardHeight - res.Height)
+			} else {
+				res.InBestView = false
+				res.NumberOfConfirmation = -1
+				prevBlockHash := blockService.BlockChain.GetBestStateShard(shardID).Hash().String()
+				for {
+					if prevBlockHash == res.Hash {
+						res.InBestView = true
+						res.NumberOfConfirmation = int(blockService.BlockChain.GetBestStateShard(shardID).ShardHeight - res.Height)
+					}
+					if prevBlockHash == blockService.BlockChain.ShardChain[shardID].GetFinalViewHash() {
+						break
+					}
+					prevBlockHash = blockService.BlockChain.GetBestStateShard(shardID).Hash().String()
+				}
+			}
 		}
 		result = append(result, &res)
 
@@ -372,6 +444,24 @@ func (blockService BlockService) RetrieveBeaconBlock(hashString string) (*jsonre
 		isFinalized = true
 	}
 	result := jsonresult.NewGetBlocksBeaconResult(block, uint64(len(blockBytes)), nextHashString, isFinalized)
+	if result.IsFinalized {
+		result.InBestView = true
+		result.NumberOfConfirmation = int(blockService.BlockChain.GetBeaconBestState().BeaconHeight - result.Height)
+	} else {
+		result.InBestView = false
+		result.NumberOfConfirmation = -1
+		prevBlockHash := blockService.BlockChain.GetBeaconBestState().Hash().String()
+		for {
+			if prevBlockHash == result.Hash {
+				result.InBestView = true
+				result.NumberOfConfirmation = int(blockService.BlockChain.GetBeaconBestState().BeaconHeight - result.Height)
+			}
+			if prevBlockHash == blockService.BlockChain.BeaconChain.GetFinalViewHash() {
+				break
+			}
+			prevBlockHash = blockService.BlockChain.GetBeaconBestState().Hash().String()
+		}
+	}
 	return result, nil
 }
 
@@ -411,6 +501,24 @@ func (blockService BlockService) RetrieveBeaconBlockByHeight(blockHeight uint64)
 			isFinalized = true
 		}
 		res := jsonresult.NewGetBlocksBeaconResult(beaconBlock, uint64(len(beaconBlockBytes)), nextHashString, isFinalized)
+		if res.IsFinalized {
+			res.InBestView = true
+			res.NumberOfConfirmation = int(blockService.BlockChain.GetBeaconBestState().BeaconHeight - res.Height)
+		} else {
+			res.InBestView = false
+			res.NumberOfConfirmation = -1
+			prevBlockHash := blockService.BlockChain.GetBeaconBestState().Hash().String()
+			for {
+				if prevBlockHash == res.Hash {
+					res.InBestView = true
+					res.NumberOfConfirmation = int(blockService.BlockChain.GetBeaconBestState().BeaconHeight - res.Height)
+				}
+				if prevBlockHash == blockService.BlockChain.BeaconChain.GetFinalViewHash() {
+					break
+				}
+				prevBlockHash = blockService.BlockChain.GetBeaconBestState().Hash().String()
+			}
+		}
 		result = append(result, res)
 	}
 	return result, nil
@@ -466,6 +574,24 @@ func (blockService BlockService) GetBlocks(shardIDParam int, numBlock int) (inte
 					isFinalized = true
 				}
 				blockResult := jsonresult.NewGetBlockResult(block, size, common.EmptyString, isFinalized)
+				if blockResult.IsFinalized {
+					blockResult.InBestView = true
+					blockResult.NumberOfConfirmation = int(blockService.BlockChain.GetBestStateShard(shardID).ShardHeight - blockResult.Height)
+				} else {
+					blockResult.InBestView = false
+					blockResult.NumberOfConfirmation = -1
+					prevBlockHash := blockService.BlockChain.GetBestStateShard(shardID).Hash().String()
+					for {
+						if prevBlockHash == blockResult.Hash {
+							blockResult.InBestView = true
+							blockResult.NumberOfConfirmation = int(blockService.BlockChain.GetBestStateShard(shardID).ShardHeight - blockResult.Height)
+						}
+						if prevBlockHash == blockService.BlockChain.ShardChain[shardID].GetFinalViewHash() {
+							break
+						}
+						prevBlockHash = blockService.BlockChain.GetBestStateShard(shardID).Hash().String()
+					}
+				}
 				resultShard = append(resultShard, *blockResult)
 				previousHash = &block.Header.PreviousBlockHash
 				if previousHash.String() == (common.Hash{}).String() {
@@ -504,6 +630,24 @@ func (blockService BlockService) GetBlocks(shardIDParam int, numBlock int) (inte
 					isFinalized = true
 				}
 				blockResult := jsonresult.NewGetBlocksBeaconResult(block, size, common.EmptyString, isFinalized)
+				if blockResult.IsFinalized {
+					blockResult.InBestView = true
+					blockResult.NumberOfConfirmation = int(blockService.BlockChain.GetBeaconBestState().BeaconHeight - blockResult.Height)
+				} else {
+					blockResult.InBestView = false
+					blockResult.NumberOfConfirmation = -1
+					prevBlockHash := blockService.BlockChain.GetBeaconBestState().Hash().String()
+					for {
+						if prevBlockHash == blockResult.Hash {
+							blockResult.InBestView = true
+							blockResult.NumberOfConfirmation = int(blockService.BlockChain.GetBeaconBestState().BeaconHeight - blockResult.Height)
+						}
+						if prevBlockHash == blockService.BlockChain.BeaconChain.GetFinalViewHash() {
+							break
+						}
+						prevBlockHash = blockService.BlockChain.GetBeaconBestState().Hash().String()
+					}
+				}
 				resultBeacon = append(resultBeacon, *blockResult)
 				previousHash = &block.Header.PreviousBlockHash
 				if previousHash.String() == (common.Hash{}).String() {
