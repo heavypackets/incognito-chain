@@ -24,6 +24,7 @@ import (
 	"github.com/incognitochain/incognito-chain/peerv2/wrapper"
 	bnbrelaying "github.com/incognitochain/incognito-chain/relaying/bnb"
 	"github.com/incognitochain/incognito-chain/syncker"
+	"go.uber.org/zap"
 
 	"github.com/incognitochain/incognito-chain/peerv2"
 
@@ -2097,7 +2098,6 @@ func (serverObj *Server) GetMinerIncognitoPublickey(publicKey string, keyType st
 }
 
 func (serverObj *Server) RequestBeaconBlocksViaStream(ctx context.Context, peerID string, from uint64, to uint64) (blockCh chan common.BlockInterface, err error) {
-	Logger.log.Infof("[SyncBeacon] from %v to %v ", from, to)
 	req := &proto.BlockByHeightRequest{
 		Type:         proto.BlkType_BlkBc,
 		Specific:     false,
@@ -2105,12 +2105,18 @@ func (serverObj *Server) RequestBeaconBlocksViaStream(ctx context.Context, peerI
 		From:         int32(peerv2.HighwayBeaconID),
 		To:           int32(peerv2.HighwayBeaconID),
 		SyncFromPeer: peerID,
+		UUID:         common.GenUUID(),
+	}
+	idOfRequest := ctx.Value("uuid")
+	if idOfRequest != nil {
+		if id, ok := idOfRequest.(string); ok {
+			req.UUID = id
+		}
 	}
 	return serverObj.requestBlocksViaStream(ctx, peerID, req)
 }
 
 func (serverObj *Server) RequestShardBlocksViaStream(ctx context.Context, peerID string, fromSID int, from uint64, to uint64) (blockCh chan common.BlockInterface, err error) {
-	Logger.log.Infof("[SyncShard] from %v to %v fromShard %v", from, to, fromSID)
 	req := &proto.BlockByHeightRequest{
 		Type:         proto.BlkType_BlkShard,
 		Specific:     false,
@@ -2118,12 +2124,18 @@ func (serverObj *Server) RequestShardBlocksViaStream(ctx context.Context, peerID
 		From:         int32(fromSID),
 		To:           int32(fromSID),
 		SyncFromPeer: peerID,
+		UUID:         common.GenUUID(),
+	}
+	idOfRequest := ctx.Value("uuid")
+	if idOfRequest != nil {
+		if id, ok := idOfRequest.(string); ok {
+			req.UUID = id
+		}
 	}
 	return serverObj.requestBlocksViaStream(ctx, peerID, req)
 }
 
 func (serverObj *Server) RequestShardToBeaconBlocksViaStream(ctx context.Context, peerID string, fromSID int, from uint64, to uint64) (blockCh chan common.BlockInterface, err error) {
-	Logger.log.Infof("[SyncS2B] from %v to %v fromShard %v", from, to, fromSID)
 	req := &proto.BlockByHeightRequest{
 		Type:         proto.BlkType_BlkS2B,
 		Specific:     false,
@@ -2131,13 +2143,18 @@ func (serverObj *Server) RequestShardToBeaconBlocksViaStream(ctx context.Context
 		From:         int32(fromSID),
 		To:           int32(peerv2.HighwayBeaconID),
 		SyncFromPeer: peerID,
+		UUID:         common.GenUUID(),
 	}
-
+	idOfRequest := ctx.Value("uuid")
+	if idOfRequest != nil {
+		if id, ok := idOfRequest.(string); ok {
+			req.UUID = id
+		}
+	}
 	return serverObj.requestBlocksViaStream(ctx, peerID, req)
 }
 
 func (serverObj *Server) RequestCrossShardBlocksViaStream(ctx context.Context, peerID string, fromSID int, toSID int, heights []uint64) (blockCh chan common.BlockInterface, err error) {
-	Logger.log.Infof("[SyncXShard] heights %v fromShard %v toShard %v", heights, fromSID, toSID)
 	req := &proto.BlockByHeightRequest{
 		Type:         proto.BlkType_BlkXShard,
 		Specific:     true,
@@ -2145,6 +2162,13 @@ func (serverObj *Server) RequestCrossShardBlocksViaStream(ctx context.Context, p
 		From:         int32(fromSID),
 		To:           int32(toSID),
 		SyncFromPeer: peerID,
+		UUID:         common.GenUUID(),
+	}
+	idOfRequest := ctx.Value("uuid")
+	if idOfRequest != nil {
+		if id, ok := idOfRequest.(string); ok {
+			req.UUID = id
+		}
 	}
 	return serverObj.requestBlocksViaStream(ctx, peerID, req)
 }
@@ -2156,6 +2180,13 @@ func (serverObj *Server) RequestCrossShardBlocksByHashViaStream(ctx context.Cont
 		From:         int32(fromSID),
 		To:           int32(toSID),
 		SyncFromPeer: peerID,
+		UUID:         common.GenUUID(),
+	}
+	idOfRequest := ctx.Value("uuid")
+	if idOfRequest != nil {
+		if id, ok := idOfRequest.(string); ok {
+			req.UUID = id
+		}
 	}
 	return serverObj.requestBlocksByHashViaStream(ctx, peerID, req)
 }
@@ -2167,6 +2198,13 @@ func (serverObj *Server) RequestBeaconBlocksByHashViaStream(ctx context.Context,
 		From:         int32(peerv2.HighwayBeaconID),
 		To:           int32(peerv2.HighwayBeaconID),
 		SyncFromPeer: peerID,
+		UUID:         common.GenUUID(),
+	}
+	idOfRequest := ctx.Value("uuid")
+	if idOfRequest != nil {
+		if id, ok := idOfRequest.(string); ok {
+			req.UUID = id
+		}
 	}
 	return serverObj.requestBlocksByHashViaStream(ctx, peerID, req)
 }
@@ -2178,6 +2216,13 @@ func (serverObj *Server) RequestShardBlocksByHashViaStream(ctx context.Context, 
 		From:         int32(fromSID),
 		To:           int32(fromSID),
 		SyncFromPeer: peerID,
+		UUID:         common.GenUUID(),
+	}
+	idOfRequest := ctx.Value("uuid")
+	if idOfRequest != nil {
+		if id, ok := idOfRequest.(string); ok {
+			req.UUID = id
+		}
 	}
 	return serverObj.requestBlocksByHashViaStream(ctx, peerID, req)
 }
@@ -2201,11 +2246,12 @@ func (serverObj *Server) RequestShardToBeaconBlocksByHashViaStream(ctx context.C
 }
 
 func (serverObj *Server) requestBlocksViaStream(ctx context.Context, peerID string, req *proto.BlockByHeightRequest) (blockCh chan common.BlockInterface, err error) {
-	Logger.log.Infof("[stream] Request Block type %v from peer %v from cID %v, [%v %v] ", req.Type, peerID, req.GetFrom(), req.Heights[0], req.Heights[len(req.Heights)-1])
+	loggerv2 := common.NewLogger(common.WithRequestID(ctx, req), logger)
+	loggerv2.Infof("Asking peerID %v for total %v block heights [%v...%v], produce from CID %v to %v", peerID, len(req.Heights), req.Heights[0], req.Heights[len(req.Heights)-1], req.From, req.To)
 	blockCh = make(chan common.BlockInterface, blockchain.DefaultMaxBlkReqPerPeer)
 	stream, err := serverObj.highway.Requester.StreamBlockByHeight(ctx, req)
 	if err != nil {
-		Logger.log.Errorf("[stream] %v", err)
+		loggerv2.Errorf("[stream] %v", err)
 		return nil, err
 	}
 
@@ -2216,19 +2262,19 @@ func (serverObj *Server) requestBlocksViaStream(ctx context.Context, peerID stri
 		}
 	}
 
-	go func(stream proto.HighwayService_StreamBlockByHeightClient, ctx context.Context) {
+	go func(stream proto.HighwayService_StreamBlockByHeightClient, ctx context.Context, newlog *zap.SugaredLogger) {
 		for {
 			blkData, err := stream.Recv()
 			if err != nil {
 				if err != io.EOF {
-					Logger.log.Errorf("[stream] %v", err)
+					newlog.Errorf("[stream] %v", err)
 				}
 				closeChannel()
 				return
 			}
 
 			if len(blkData.Data) < 2 {
-				Logger.log.Errorf("[stream] received empty blk")
+				newlog.Errorf("[stream] received empty blk")
 				closeChannel()
 				return
 			}
@@ -2244,7 +2290,7 @@ func (serverObj *Server) requestBlocksViaStream(ctx context.Context, peerID stri
 
 			err = wrapper.DeCom(blkData.Data[1:], newBlk)
 			if err != nil {
-				Logger.log.Errorf("[stream] %v", err)
+				newlog.Errorf("[stream] %v", err)
 				closeChannel()
 				return
 			}
@@ -2257,13 +2303,14 @@ func (serverObj *Server) requestBlocksViaStream(ctx context.Context, peerID stri
 			}
 		}
 
-	}(stream, ctx)
+	}(stream, ctx, loggerv2)
 
 	return blockCh, nil
 }
 
 func (serverObj *Server) requestBlocksByHashViaStream(ctx context.Context, peerID string, req *proto.BlockByHashRequest) (blockCh chan common.BlockInterface, err error) {
-	Logger.log.Infof("SYNCKER Request Block by hash from peerID %v, from CID %v, total %v blocks", peerID, req.From, len(req.Hashes))
+	loggerv2 := common.NewLogger(common.WithRequestID(ctx, req), logger)
+	loggerv2.Infof("Asking peerID %v for total %v block hashes, produce from CID %v to %v", peerID, len(req.Hashes), req.From, req.To)
 	blockCh = make(chan common.BlockInterface, blockchain.DefaultMaxBlkReqPerPeer)
 	stream, err := serverObj.highway.Requester.StreamBlockByHash(ctx, req)
 	if err != nil {

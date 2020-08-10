@@ -3,7 +3,6 @@ package syncker
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"time"
 
@@ -145,7 +144,7 @@ func (s *BeaconSyncProcess) updateConfirmCrossShard() {
 		s.lastCrossShardState = lastBeaconStateConfirmCrossX.LastCrossShardState
 		lastBeaconHeightConfirmCrossX = lastBeaconStateConfirmCrossX.BeaconHeight
 	}
-	fmt.Println("lastBeaconHeightConfirmCrossX", lastBeaconHeightConfirmCrossX)
+	Logger.Infof("Last Beacon Height Confirm BlkXShard %v", lastBeaconHeightConfirmCrossX)
 	for {
 		if lastBeaconHeightConfirmCrossX > s.chain.GetFinalViewHeight() {
 			//fmt.Println("DEBUG:larger than final view", s.chain.GetFinalViewHeight())
@@ -162,11 +161,11 @@ func (s *BeaconSyncProcess) updateConfirmCrossShard() {
 		if err == nil {
 			lastBeaconHeightConfirmCrossX++
 			if lastBeaconHeightConfirmCrossX%1000 == 0 {
-				fmt.Println("store lastBeaconHeightConfirmCrossX", lastBeaconHeightConfirmCrossX)
+				Logger.Infof("store lastBeaconHeightConfirmCrossX %v", lastBeaconHeightConfirmCrossX)
 				rawdbv2.StoreLastBeaconStateConfirmCrossShard(s.server.GetBeaconChainDatabase(), LastCrossShardBeaconProcess{lastBeaconHeightConfirmCrossX, s.lastCrossShardState})
 			}
 		} else {
-			fmt.Println(err)
+			Logger.Error(err)
 			time.Sleep(time.Second * 5)
 		}
 
@@ -194,9 +193,9 @@ func processBeaconForConfirmmingCrossShard(database incdb.Database, beaconBlock 
 						beaconBlock.GetHeight(),
 						beaconBlock.Hash().String(),
 					}
-					fmt.Println("DEBUG: processBeaconForConfirmmingCrossShard ", fromShard, toShard, info)
+					Logger.Infof("processBeaconForConfirmmingCrossShard from %v to %v; info %v", fromShard, toShard, info)
 					b, _ := json.Marshal(info)
-					fmt.Println("debug StoreCrossShardNextHeight", fromShard, toShard, lastHeight, string(b))
+					Logger.Infof("storeCrossShardNextHeight from %v, to %v; marshal info %v", fromShard, toShard, lastHeight, string(b))
 					err := rawdbv2.StoreCrossShardNextHeight(database, fromShard, toShard, lastHeight, b)
 					if err != nil {
 						return err
@@ -295,6 +294,13 @@ func (s *BeaconSyncProcess) streamFromPeer(peerID string, pState BeaconPeerState
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	dI := &DummyIdentifier{
+		uuid: common.GenUUID(),
+	}
+	ctx = context.WithValue(ctx, "uuid", dI.uuid)
+	ctx = common.WithRequestID(ctx, dI)
+	loggerv2 := common.NewLogger(ctx, logger)
+
 	blockBuffer := []common.BlockInterface{}
 	defer func() {
 		if requestCnt == 0 {
@@ -318,7 +324,7 @@ func (s *BeaconSyncProcess) streamFromPeer(peerID string, pState BeaconPeerState
 	//stream
 	ch, err := s.server.RequestBeaconBlocksViaStream(ctx, "", s.chain.GetFinalViewHeight()+1, toHeight)
 	if err != nil {
-		fmt.Println("Syncker: create channel fail")
+		loggerv2.Errorf("Create channel fail, error: %v", err)
 		return
 	}
 
@@ -339,12 +345,12 @@ func (s *BeaconSyncProcess) streamFromPeer(peerID string, pState BeaconPeerState
 					time1 := time.Now()
 					if successBlk, err := InsertBatchBlock(s.chain, blockBuffer); err != nil {
 						if successBlk == 0 {
-							fmt.Println(err)
+							loggerv2.Error(err)
 						}
 						return
 					} else {
 						insertBlkCnt += successBlk
-						Logger.Infof("Syncker Insert %d beacon block (from %d to %d) elaspse %f \n", successBlk, blockBuffer[0].GetHeight(), blockBuffer[len(blockBuffer)-1].GetHeight(), time.Since(time1).Seconds())
+						loggerv2.Infof("Syncker Insert %d beacon block (from %d to %d) elaspse %f \n", successBlk, blockBuffer[0].GetHeight(), blockBuffer[len(blockBuffer)-1].GetHeight(), time.Since(time1).Seconds())
 						if successBlk >= len(blockBuffer) {
 							break
 						}

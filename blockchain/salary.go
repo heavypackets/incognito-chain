@@ -369,7 +369,6 @@ func splitReward(
 		}
 	}
 	if !hasValue {
-		//fmt.Printf("[ndh] not enough reward\n")
 		return nil, nil, nil, NewBlockChainError(NotEnoughRewardError, errors.New("Not enough reward"))
 	}
 	return &rewardForBeacon, &rewardForIncDAO, &rewardForCustodian, nil

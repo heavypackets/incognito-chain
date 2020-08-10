@@ -3,7 +3,7 @@ package rpcserver
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+
 	"github.com/incognitochain/incognito-chain/dataaccessobject/rawdbv2"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 
@@ -83,7 +83,7 @@ func (httpServer *HttpServer) handleGetShardBestState(params interface{}, closeC
 
 	block, _, err := httpServer.config.BlockChain.GetShardBlockByHash(shardBestState.BestBlockHash)
 	if err != nil || block == nil {
-		fmt.Println("block ", block)
+		Logger.log.Errorf("Got issue when get shard block by hash %v, block %v, error %v", shardBestState.BestBlockHash, block, err)
 		return nil, rpcservice.NewRPCError(rpcservice.RPCInternalError, err)
 	}
 	shardBestState.BestBlock = block

@@ -110,7 +110,6 @@ func (e *BLSBFT_V2) Start() error {
 			case <-e.StopCh:
 				return
 			case proposeMsg := <-e.ProposeMessageCh:
-				//fmt.Println("debug receive propose message", string(proposeMsg.Block))
 				blockIntf, err := e.Chain.UnmarshalBlock(proposeMsg.Block)
 				if err != nil || blockIntf == nil {
 					e.Logger.Info(err)
@@ -337,7 +336,6 @@ func (e *BLSBFT_V2) processIfBlockGetEnoughVote(blockHash string, v *ProposeBloc
 	if validVote > 2*len(view.GetCommittee())/3 {
 		e.Logger.Infof("Commit block %v , height: %v", blockHash, v.block.GetHeight())
 		committeeBLSString, err := incognitokey.ExtractPublickeysFromCommitteeKeyList(view.GetCommittee(), common.BlsConsensus)
-		//fmt.Println(committeeBLSString)
 		if err != nil {
 			e.Logger.Error(err)
 			return

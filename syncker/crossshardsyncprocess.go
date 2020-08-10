@@ -2,7 +2,6 @@ package syncker
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/incognitochain/incognito-chain/blockchain"
@@ -122,14 +121,14 @@ func (s *CrossShardSyncProcess) streamMissingCrossShardBlock(fromSID int, hashes
 	//stream
 	ch, err := s.server.RequestCrossShardBlocksByHashViaStream(ctx, "", fromSID, s.shardID, hashes)
 	if err != nil {
-		fmt.Println("Syncker: create channel fail")
+		Logger.Errorf("create channel fail, error: %v", err)
 		return
 	}
 
 	//receive
 	for blk := range ch {
 		if !isNil(blk) {
-			fmt.Println("syncker: Insert crossShard block", blk.GetHeight(), blk.Hash().String())
+			Logger.Infof("Insert crossShard block height %v, hash %v", blk.GetHeight(), blk.Hash().String())
 			s.crossShardPool.AddBlock(blk.(common.BlockPoolInterface))
 		} else {
 			return

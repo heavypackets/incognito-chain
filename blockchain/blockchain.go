@@ -488,7 +488,7 @@ func (blockchain *BlockChain) BackupShardViews(db incdb.KeyValueWriter, shardID 
 	for _, v := range blockchain.ShardChain[shardID].multiView.GetAllViewsWithBFS() {
 		allViews = append(allViews, v.(*ShardBestState))
 	}
-	fmt.Println("debug BackupShardViews", len(allViews))
+	Logger.log.Infof("BackupShardViews: Number of shard view: %v", len(allViews))
 	return rawdbv2.StoreShardBestState(db, shardID, allViews)
 }
 
@@ -499,22 +499,22 @@ func (blockchain *BlockChain) RestoreShardViews(shardID byte) error {
 	allViews := []*ShardBestState{}
 	b, err := rawdbv2.GetShardBestState(blockchain.GetShardChainDatabase(shardID), shardID)
 	if err != nil {
-		fmt.Println("debug Cannot see shard best state")
+		Logger.log.Errorf("Cannot see shard best state, error from db: %v", err)
 		return err
 	}
 	err = json.Unmarshal(b, &allViews)
 	if err != nil {
-		fmt.Println("debug Cannot unmarshall shard best state", string(b))
+		Logger.log.Errorf("Cannot unmarshall shard best state, raw data from db: %v", string(b))
 		return err
 	}
-	fmt.Println("debug RestoreShardViews", len(allViews))
+	Logger.log.Infof("RestoreShardViews: Number of shard view: %v", len(allViews))
 	blockchain.ShardChain[shardID].multiView.Reset()
 
 	for _, v := range allViews {
 
 		block, _, err := blockchain.GetShardBlockByHash(v.BestBlockHash)
 		if err != nil || block == nil {
-			fmt.Println("block ", block)
+			Logger.log.Errorf("Got issue when get shard block, block %v, error %v", block, err)
 			panic(err)
 		}
 		v.BestBlock = block

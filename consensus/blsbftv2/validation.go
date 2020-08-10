@@ -58,12 +58,9 @@ func ValidateProducerSig(block common.BlockInterface) error {
 	if err != nil {
 		return NewConsensusError(UnExpectedError, err)
 	}
-	//start := time.Now()
 	if err := validateSingleBriSig(block.Hash(), valData.ProducerBLSSig, producerKey.MiningPubKey[common.BridgeConsensus]); err != nil {
 		return NewConsensusError(UnExpectedError, err)
 	}
-	//end := time.Now().Sub(start)
-	//fmt.Printf("ConsLog just verify %v\n", end.Seconds())
 	return nil
 }
 
@@ -91,7 +88,6 @@ func (e BLSBFT_V2) ValidateData(data []byte, sig string, publicKey string) error
 	// if err != nil {
 	// 	return NewConsensusError(UnExpectedError, err)
 	// }
-	//fmt.Printf("ValidateData data %v, sig %v, publicKey %v\n", data, sig, publicKeyByte)
 	dataHash := new(common.Hash)
 	dataHash.NewHash(data)
 	_, err = bridgesig.Verify(publicKeyByte, dataHash.GetBytes(), sigByte) //blsmultisig.Verify(sigByte, data, []int{0}, []blsmultisig.PublicKey{publicKeyByte})
@@ -107,10 +103,7 @@ func validateSingleBLSSig(
 	selfIdx int,
 	committee []blsmultisig.PublicKey,
 ) error {
-	//start := time.Now()
 	result, err := blsmultisig.Verify(blsSig, dataHash.GetBytes(), []int{selfIdx}, committee)
-	//end := time.Now().Sub(start)
-	//fmt.Printf("ConsLog single verify %v\n", end.Seconds())
 	if err != nil {
 		return NewConsensusError(UnExpectedError, err)
 	}

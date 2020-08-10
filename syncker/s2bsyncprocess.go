@@ -2,7 +2,6 @@ package syncker
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/incognitochain/incognito-chain/blockchain"
@@ -179,7 +178,7 @@ func (s *S2BSyncProcess) streamFromPeer(peerID string, senderState map[byte]S2BP
 		requestCnt++
 		ch, err := s.Server.RequestShardToBeaconBlocksViaStream(ctx, peerID, int(sID), reqFromHeight, toHeight)
 		if err != nil {
-			fmt.Println("Syncker: create channel fail")
+			Logger.Errorf("create channel fail, error: %v", err)
 			return
 		}
 
@@ -190,7 +189,7 @@ func (s *S2BSyncProcess) streamFromPeer(peerID string, senderState map[byte]S2BP
 			select {
 			case blk := <-ch:
 				if !isNil(blk) {
-					fmt.Println("Syncker Insert shard2beacon block", sID, blk.GetHeight(), blk.Hash().String(), blk.(common.BlockPoolInterface).GetPrevHash())
+					Logger.Infof("Insert shard2beacon block shard %v, height %v, hash %v, prev-hash %v", sID, blk.GetHeight(), blk.Hash().String(), blk.(common.BlockPoolInterface).GetPrevHash())
 					s.s2bPool.AddBlock(blk.(common.BlockPoolInterface))
 				} else {
 					shardState.processed = true
@@ -203,7 +202,6 @@ func (s *S2BSyncProcess) streamFromPeer(peerID string, senderState map[byte]S2BP
 		}
 
 	}
-	//fmt.Printf("Syncker received S2BState %v, start sync\n", pState)
 	for fromSID, shardState := range senderState {
 		requestS2BBlockFromAShardPeer(fromSID, shardState)
 	}

@@ -2,7 +2,6 @@ package syncker
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -232,7 +231,7 @@ func (s *ShardSyncProcess) streamFromPeer(peerID string, pState ShardPeerState) 
 	ch, err := s.Server.RequestShardBlocksViaStream(ctx, peerID, s.shardID, s.Chain.GetFinalViewHeight()+1, toHeight)
 	// ch, err := s.Server.RequestShardBlocksViaStream(ctx, "", s.shardID, s.Chain.GetBestViewHeight()+1, pState.BestViewHeight)
 	if err != nil {
-		fmt.Println("Syncker: create channel fail")
+		Logger.Errorf("create channel fail, error: %v", err)
 		return
 	}
 
@@ -261,7 +260,7 @@ func (s *ShardSyncProcess) streamFromPeer(peerID string, pState ShardPeerState) 
 						return
 					} else {
 						insertBlkCnt += successBlk
-						fmt.Printf("Syncker Insert %d shard %d block(from %d to %d) elaspse %f \n", successBlk, s.shardID, blockBuffer[0].GetHeight(), blockBuffer[len(blockBuffer)-1].GetHeight(), time.Since(time1).Seconds())
+						Logger.Infof("Insert %d shard %d block(from %d to %d) elaspse %f \n", successBlk, s.shardID, blockBuffer[0].GetHeight(), blockBuffer[len(blockBuffer)-1].GetHeight(), time.Since(time1).Seconds())
 						if successBlk >= len(blockBuffer) {
 							break
 						}

@@ -234,8 +234,8 @@ func (c *BlockRequester) StreamBlockByHash(
 	ctx context.Context,
 	req *proto.BlockByHashRequest,
 ) (proto.HighwayService_StreamBlockByHashClient, error) {
-
-	Logger.Infof("[stream] Requesting stream block type %v, hashes [%v..%v] len %v, from %v to %v, uuid = %s", req.Type, req.Hashes[0], req.Hashes[len(req.Hashes)-1], len(req.Hashes), req.From, req.To, req.UUID)
+	loggerv2 := common.NewLogger(common.WithRequestID(ctx, req), logger)
+	loggerv2.Infof("[stream] Requesting stream block type %v, hashes [%v..%v] len %v, from %v to %v, uuid = %s", req.Type, req.Hashes[0], req.Hashes[len(req.Hashes)-1], len(req.Hashes), req.From, req.To, req.UUID)
 	c.RLock()
 	defer c.RUnlock()
 	if !c.ready() {
@@ -245,7 +245,7 @@ func (c *BlockRequester) StreamBlockByHash(
 	client := proto.NewHighwayServiceClient(c.conn)
 	stream, err := client.StreamBlockByHash(ctx, req, grpc.MaxCallRecvMsgSize(MaxCallRecvMsgSize))
 	if err != nil {
-		Logger.Infof("[stream] This client not return stream for this request %v, got error %v ", req, err)
+		loggerv2.Infof("[stream] This client not return stream for this request %v, got error %v ", req, err)
 		return nil, err
 	}
 	return stream, nil

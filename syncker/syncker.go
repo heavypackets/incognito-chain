@@ -391,7 +391,7 @@ func (synckerManager *SynckerManager) StreamMissingCrossShardBlock(ctx context.C
 		//fmt.Println("debug stream missing crossshard block", int(fromShard), int(toShard), missingHeight)
 		ch, err := synckerManager.config.Node.RequestCrossShardBlocksViaStream(ctx, "", int(fromShard), int(toShard), missingHeight)
 		if err != nil {
-			fmt.Println("Syncker: create channel fail")
+			Logger.Errorf("create channel fail, error: %v", err)
 			return
 		}
 		//receive
@@ -470,7 +470,7 @@ func (synckerManager *SynckerManager) SyncMissingBeaconBlock(ctx context.Context
 	for {
 		ch, err := synckerManager.config.Node.RequestBeaconBlocksByHashViaStream(ctx, peerID, [][]byte{requestHash.Bytes()})
 		if err != nil {
-			fmt.Println("[Monitor] Syncker: create channel fail")
+			Logger.Errorf("create channel fail, error: %v", err)
 			return
 		}
 		blk := <-ch
@@ -495,7 +495,7 @@ func (synckerManager *SynckerManager) SyncMissingShardBlock(ctx context.Context,
 	for {
 		ch, err := synckerManager.config.Node.RequestShardBlocksByHashViaStream(ctx, peerID, int(sid), [][]byte{requestHash.Bytes()})
 		if err != nil {
-			fmt.Println("Syncker: create channel fail")
+			Logger.Errorf("create channel fail, error: %v", err)
 			return
 		}
 		blk := <-ch
