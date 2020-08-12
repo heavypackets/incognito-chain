@@ -2,6 +2,7 @@ package rpcservice
 
 import (
 	"encoding/json"
+
 	"github.com/incognitochain/incognito-chain/blockchain"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"github.com/incognitochain/incognito-chain/metadata"
@@ -13,7 +14,7 @@ type PortalService struct {
 }
 
 func (portal *PortalService) GetPortingRequestByByKey(txId string) (jsonresult.PortalPortingRequest, error) {
-	portalStateDB := portal.BlockChain.GetBeaconBestState().GetBeaconFeatureStateDB()
+	portalStateDB := portal.BlockChain.GetBeaconFinalState().GetBeaconFeatureStateDB()
 	portingRequestItem, err := statedb.GetPortalStateStatusMultiple(portalStateDB, statedb.PortalPortingRequestTxStatusPrefix(), []byte(txId))
 
 	if err != nil {
@@ -34,7 +35,7 @@ func (portal *PortalService) GetPortingRequestByByKey(txId string) (jsonresult.P
 }
 
 func (portal *PortalService) GetPortingRequestByByPortingId(portingId string) (jsonresult.PortalPortingRequest, error) {
-	portalStateDB := portal.BlockChain.GetBeaconBestState().GetBeaconFeatureStateDB()
+	portalStateDB := portal.BlockChain.GetBeaconFinalState().GetBeaconFeatureStateDB()
 	portingRequestItem, err := statedb.GetPortalStateStatusMultiple(portalStateDB, statedb.PortalPortingRequestStatusPrefix(), []byte(portingId))
 
 	if err != nil {
@@ -55,7 +56,7 @@ func (portal *PortalService) GetPortingRequestByByPortingId(portingId string) (j
 }
 
 func (portal *PortalService) GetCustodianWithdrawByTxId(txId string) (jsonresult.PortalCustodianWithdrawRequest, error) {
-	portalStateDB := portal.BlockChain.GetBeaconBestState().GetBeaconFeatureStateDB()
+	portalStateDB := portal.BlockChain.GetBeaconFinalState().GetBeaconFeatureStateDB()
 	custodianWithdraw, err := statedb.GetPortalStateStatusMultiple(portalStateDB, statedb.PortalCustodianWithdrawStatusPrefix(), []byte(txId))
 
 	if err != nil {
