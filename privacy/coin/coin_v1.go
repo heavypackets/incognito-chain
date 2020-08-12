@@ -31,7 +31,11 @@ type PlainCoinV1 struct {
 func ArrayPlainCoinToPlainCoinV1(inputCoins []PlainCoin) []*PlainCoinV1 {
 	res := make([]*PlainCoinV1, len(inputCoins))
 	for i := 0; i < len(inputCoins); i += 1 {
-		res[i] = inputCoins[i].(*PlainCoinV1)
+		var ok bool
+		res[i], ok = inputCoins[i].(*PlainCoinV1)
+		if !ok{
+			return nil
+		}
 	}
 	return res
 }
@@ -47,7 +51,11 @@ func ArrayCoinV1ToCoin(inputCoins []*CoinV1) []Coin {
 func ArrayCoinToCoinV1(inputCoins []Coin) []*CoinV1 {
 	res := make([]*CoinV1, len(inputCoins))
 	for i := 0; i < len(inputCoins); i += 1 {
-		res[i] = inputCoins[i].(*CoinV1)
+		var ok bool
+		res[i], ok = inputCoins[i].(*CoinV1)
+		if !ok{
+			return nil
+		}
 	}
 	return res
 }
@@ -467,7 +475,7 @@ func (c *CoinV1) SetBytes(bytes []byte) error {
 	}
 
 	// try get 1-byte for len
-	if offset > len(bytes) {
+	if offset >= len(bytes) {
 		// out of range
 		return errors.New("out of range Parse CoinDetails")
 	}

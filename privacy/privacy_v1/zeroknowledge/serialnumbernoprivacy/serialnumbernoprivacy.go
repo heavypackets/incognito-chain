@@ -151,8 +151,11 @@ func (pro SNNoPrivacyProof) Bytes() []byte {
 }
 
 func (pro *SNNoPrivacyProof) SetBytes(bytes []byte) error {
-	if len(bytes) == 0 {
-		return errors.New("Bytes array is empty")
+	// if len(bytes) == 0 {
+	// 	return errors.New("Bytes array is empty")
+	// }
+	if len(bytes) < operation.Ed25519KeySize*6{
+		return errors.New("Not enough bytes to unmarshal Serial Number No Privacy Proof")
 	}
 
 	offset := 0
@@ -184,7 +187,7 @@ func (pro *SNNoPrivacyProof) SetBytes(bytes []byte) error {
 	}
 	offset += operation.Ed25519KeySize
 
-	pro.zSeed.FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
+	pro.zSeed = new(operation.Scalar).FromBytesS(bytes[offset : offset+operation.Ed25519KeySize])
 
 	return nil
 }

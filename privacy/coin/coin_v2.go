@@ -115,7 +115,10 @@ func (c *CoinV2) ConcealOutputCoin(additionalData interface{}) error {
 	if c.IsEncrypted() || c.GetSharedRandom() == nil {
 		return nil
 	}
-	publicView := additionalData.(*operation.Point)
+	publicView, ok := additionalData.(*operation.Point)
+	if !ok{
+		return errors.New("Cannot conceal CoinV2 without receiver view key")
+	}
 
 	rK := new(operation.Point).ScalarMult(publicView, c.GetSharedRandom())
 	_, index, err := c.GetTxRandomDetail()
@@ -342,7 +345,7 @@ func (c CoinV2) Bytes() []byte {
 func (c *CoinV2) SetBytes(coinBytes []byte) error {
 	var err error
 	if c == nil {
-		c = new(CoinV2)
+		return errors.New("Cannot set bytes for unallocated CoinV2")
 	}
 	if len(coinBytes) == 0 {
 		return errors.New("coinBytes is empty")

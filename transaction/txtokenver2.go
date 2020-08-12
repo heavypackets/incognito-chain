@@ -370,6 +370,10 @@ func (txToken *TxTokenVersion2) verifySig(transactionStateDB *statedb.StateDB, s
 	inputCoins := txFee.GetProof().GetInputCoins()
 	keyImages := make([]*operation.Point, len(inputCoins)+1)
 	for i := 0; i < len(inputCoins); i += 1 {
+		if inputCoins[i].GetKeyImage()==nil {
+			Logger.Log.Errorf("Error when reconstructing mlsagSignature: missing keyImage")
+			return false, err
+		}
 		keyImages[i] = inputCoins[i].GetKeyImage()
 	}
 	// The last column is gone, so just fill in any value
@@ -433,9 +437,19 @@ func (txToken TxTokenVersion2) ValidateTransaction(hasPrivacyCoin bool, transact
 			if txToken.GetType() == common.TxTokenConversionType {
 				return validateConversionVer1ToVer2(txToken.TxTokenData.TxNormal, transactionStateDB, shardID, &tokenID)
 			} else {
-				return txToken.TxTokenData.TxNormal.ValidateTransaction(
+				resTxTokenData, err :=  txToken.TxTokenData.TxNormal.ValidateTransaction(
 					txToken.TxTokenData.TxNormal.IsPrivacy(),
 					transactionStateDB, bridgeStateDB, shardID, &tokenID, isBatch, isNewTransaction)
+				if err!= nil{
+					return resTxTokenData, err
+				}
+				txFeeProof := txToken.Tx.GetProof()
+				if txFeeProof == nil {
+					return resTxTokenData, nil
+				}
+				resTxFee, err := txFeeProof.Verify(true, txToken.Tx.GetSigPubKey(), 0, shardID, &common.PRVCoinID, isBatch, nil)
+				return resTxFee && resTxTokenData, err
+
 			}
 		default:
 			return false, errors.New("Cannot validate Tx Token. Unavailable type")
@@ -446,6 +460,9 @@ func (txToken TxTokenVersion2) ValidateTransaction(hasPrivacyCoin bool, transact
 func (txToken TxTokenVersion2) ValidateSanityData(chainRetriever metadata.ChainRetriever, shardViewRetriever metadata.ShardViewRetriever, beaconViewRetriever metadata.BeaconViewRetriever, beaconHeight uint64) (bool, error) {
 	if txToken.GetTxBase().GetProof() == nil && txToken.TxTokenData.TxNormal.GetProof() == nil {
 		return false, errors.New("Tx Privacy Ver 2 must have a proof")
+	}
+	if txToken.GetTokenID().String() == common.PRVCoinID.String(){
+		return false, NewTransactionErr(InvalidSanityDataPrivacyTokenError, errors.New("cannot transfer PRV via txtoken"))
 	}
 	// validate metadata
 	check, err := validateSanityMetadata(&txToken, chainRetriever, shardViewRetriever, beaconViewRetriever, beaconHeight)
