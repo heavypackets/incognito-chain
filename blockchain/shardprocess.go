@@ -505,6 +505,8 @@ func (blockchain *BlockChain) verifyPreProcessingShardBlockForSigning(curView *S
 		return err
 	}
 
+	Logger.log.Infof("Validator beaconInstructions %+v", beaconInstructions)
+
 	env := committeestate.
 		NewShardEnvBuilder().
 		BuildProducersBlackList(producersBlackList).
@@ -515,6 +517,8 @@ func (blockchain *BlockChain) verifyPreProcessingShardBlockForSigning(curView *S
 	if err != nil {
 		return err
 	}
+
+	Logger.log.Infof("Validator committeeChange %+v", committeeChange)
 
 	instructions := [][]string{}
 
@@ -534,6 +538,8 @@ func (blockchain *BlockChain) verifyPreProcessingShardBlockForSigning(curView *S
 	if err != nil {
 		return NewBlockChainError(ProcessInstructionFromBeaconError, err)
 	}
+
+	Logger.log.Infof("Validator ShardPendingValidatorStr %+v", shardPendingValidatorStr)
 
 	instructions, _, shardCommittee, err = blockchain.generateInstruction(curView,
 		shardID, shardBlock.Header.BeaconHeight, isOldBeaconHeight,

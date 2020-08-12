@@ -150,6 +150,8 @@ func (blockchain *BlockChain) NewBlockShard(curView *ShardBestState, version int
 		return nil, err
 	}
 
+	Logger.log.Infof("Producer beaconInstructions %+v", beaconInstructions)
+
 	shardPendingValidatorStr, err := incognitokey.
 		CommitteeKeyListToString(currentPendingValidators)
 	if err != nil {
@@ -167,6 +169,8 @@ func (blockchain *BlockChain) NewBlockShard(curView *ShardBestState, version int
 		return nil, err
 	}
 
+	Logger.log.Infof("Producer committeeChange %+v", committeeChange)
+
 	curView.shardCommitteeEngine.AbortUncommittedShardState()
 
 	currentPendingValidators, err = updateCommiteesWithAddedAndRemovedListValidator(currentPendingValidators,
@@ -177,6 +181,8 @@ func (blockchain *BlockChain) NewBlockShard(curView *ShardBestState, version int
 	if err != nil {
 		return nil, NewBlockChainError(ProcessInstructionFromBeaconError, err)
 	}
+
+	Logger.log.Infof("Producer ShardPendingValidatorStr %+v", shardPendingValidatorStr)
 
 	shardInstructions, _, _, err = blockchain.generateInstruction(curView, shardID,
 		beaconHeight, isOldBeaconHeight, beaconBlocks,
