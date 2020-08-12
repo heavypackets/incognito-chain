@@ -285,6 +285,9 @@ func (committeeState *ShardCommitteeStateV1) processInstructionFromBeacon(
 
 	for _, inst := range listInstructions {
 		assignInstruction, err := instruction.ValidateAndImportAssignInstructionFromString(inst)
+		if err != nil {
+			Logger.log.Errorf("Process Shard Block Assign Instruction: %+v \n Error: %+v \n", inst, err)
+		}
 		if err == nil && assignInstruction.ChainID == int(shardID) {
 			addedSubstituteValidator = append(addedSubstituteValidator, assignInstruction.ShardCandidatesStruct...)
 			committeeState.shardPendingValidator = append(committeeState.shardPendingValidator, assignInstruction.ShardCandidatesStruct...)
