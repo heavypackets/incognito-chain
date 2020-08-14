@@ -886,9 +886,17 @@ func (txService TxService) GetTransactionByHash(txHashStr string) (*jsonresult.T
 		result.IsInMempool = true
 		return result, nil
 	}
+
 	if blockHeight <= txService.BlockChain.ShardChain[shardID].GetFinalViewHeight() {
-		isFinalized = true
+		finalBlockHash, err := rawdbv2.GetFinalizedShardBlockHashByIndex(txService.BlockChain.GetShardChainDatabase(shardID), shardID, blockHeight)
+		if err != nil {
+			return nil, NewRPCError(GetShardBlockByHeightError, err)
+		}
+		if finalBlockHash.IsEqual(&blockHash) {
+			isFinalized = true
+		}
 	}
+
 	result, err := jsonresult.NewTransactionDetail(tx, &blockHash, blockHeight, index, shardID)
 	if err != nil {
 		return nil, NewRPCError(UnexpectedError, err)
