@@ -539,6 +539,8 @@ func (blockchain *BlockChain) processInstructionFromBeacon(beaconBlocks []*Beaco
 //	#2: shardpendingvalidator
 //	#3: shardcommittee
 //	#4: error
+// REVIEW: @hung
+// - backupShardCommittee := shardCommittee is an unsafe array assign
 func (blockchain *BlockChain) generateInstruction(shardID byte, beaconHeight uint64, isOldBeaconHeight bool, beaconBlocks []*BeaconBlock, shardPendingValidator []string, shardCommittee []string) ([][]string, []string, []string, error) {
 	var (
 		instructions          = [][]string{}

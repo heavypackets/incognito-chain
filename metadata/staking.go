@@ -3,6 +3,7 @@ package metadata
 import (
 	"bytes"
 	"errors"
+
 	"github.com/incognitochain/incognito-chain/common"
 	"github.com/incognitochain/incognito-chain/dataaccessobject/statedb"
 	"github.com/incognitochain/incognito-chain/incognitokey"
@@ -48,12 +49,17 @@ func NewStakingMetadata(
 
 /*
  */
+// REVIEW: @hung
+// - REDUCE_CHECK:
+//		+ no need to IsInBase58ShortFormat because error is already check below by FromString
+//		+ what IsInBase58ShortFormat does is the same as FromString does but for an array
 func (sm *StakingMetadata) ValidateMetadataByItself() bool {
 	rewardReceiverPaymentAddress := sm.RewardReceiverPaymentAddress
 	rewardReceiverWallet, err := wallet.Base58CheckDeserialize(rewardReceiverPaymentAddress)
 	if err != nil || rewardReceiverWallet == nil {
 		return false
 	}
+	///// REDUCE_CHECK START
 	if !incognitokey.IsInBase58ShortFormat([]string{sm.CommitteePublicKey}) {
 		return false
 	}
@@ -61,6 +67,8 @@ func (sm *StakingMetadata) ValidateMetadataByItself() bool {
 	if err := CommitteePublicKey.FromString(sm.CommitteePublicKey); err != nil {
 		return false
 	}
+	///// REDUCE_CHECK END
+
 	if !CommitteePublicKey.CheckSanityData() {
 		return false
 	}
@@ -69,6 +77,8 @@ func (sm *StakingMetadata) ValidateMetadataByItself() bool {
 	return sm.Type == ShardStakingMeta
 }
 
+// REVIEW: @hung
+// - This func GetAllCommitteeValidatorCandidate doesn't return any err (check implementation at retrieverformetadata.go)
 func (stakingMetadata StakingMetadata) ValidateTxWithBlockChain(txr Transaction, bcr BlockchainRetriever, b byte, stateDB *statedb.StateDB) (bool, error) {
 	SC, SPV, BC, BPV, CBWFCR, CBWFNR, CSWFCR, CSWFNR, err := bcr.GetAllCommitteeValidatorCandidate()
 	if err != nil {
@@ -102,6 +112,9 @@ func (stakingMetadata StakingMetadata) ValidateTxWithBlockChain(txr Transaction,
 	// Receiver Is Burning Address
 	//
 */
+// REVIEW: @hung
+// - bcr.GetStakingAmountShard()*3, 3 should be set as a constants elsewhere (same for method GetBeaconStakeAmount of stakingMetadata - below) or implement a seperate method for Beacon, reason: easy to find and change
+// - only one of these 2 combinations of 'true, true' and 'false, false' is return instead of 4 possible combinations -> only return true or false and error is enough
 func (stakingMetadata StakingMetadata) ValidateSanityData(
 	bcr BlockchainRetriever,
 	txr Transaction,
@@ -169,6 +182,8 @@ func (stakingMetadata *StakingMetadata) CalculateSize() uint64 {
 	return calculateSize(stakingMetadata)
 }
 
+// REVIEW: @hung
+// 3 should be set as a constants elsewhere
 func (stakingMetadata StakingMetadata) GetBeaconStakeAmount() uint64 {
 	return stakingMetadata.StakingAmountShard * 3
 }
