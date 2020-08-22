@@ -53,6 +53,7 @@ func NewStakingMetadata(
 // - REDUCE_CHECK:
 //		+ no need to IsInBase58ShortFormat because error is already check below by FromString
 //		+ what IsInBase58ShortFormat does is the same as FromString does but for an array
+//		+ should we check FunderPaymentAddress?
 func (sm *StakingMetadata) ValidateMetadataByItself() bool {
 	rewardReceiverPaymentAddress := sm.RewardReceiverPaymentAddress
 	rewardReceiverWallet, err := wallet.Base58CheckDeserialize(rewardReceiverPaymentAddress)
